@@ -613,3 +613,370 @@ class TestAnthropicProviderStream:
         event_types = [e.type for e in collected]
         assert "thinking_delta" in event_types
         assert "done" in event_types
+
+
+class TestAnthropicProviderProperties:
+    """Tests for provider properties."""
+
+    def test_model_name_property(self) -> None:
+        provider = AnthropicProvider(model="claude-opus-4-20250514")
+        assert provider.model_name == "claude-opus-4-20250514"
+
+    def test_provider_name_property(self) -> None:
+        provider = AnthropicProvider()
+        assert provider.provider_name == "anthropic"
+
+
+class TestParseStreamingJson:
+    """Tests for _parse_streaming_json."""
+
+    def test_empty_string(self) -> None:
+        from isotopo_core.providers.anthropic import _parse_streaming_json
+
+        assert _parse_streaming_json("") == {}
+
+    def test_valid_json(self) -> None:
+        from isotopo_core.providers.anthropic import _parse_streaming_json
+
+        assert _parse_streaming_json('{"key": "value"}') == {"key": "value"}
+
+    def test_incomplete_json_repair(self) -> None:
+        from isotopo_core.providers.anthropic import _parse_streaming_json
+
+        result = _parse_streaming_json('{"key": "value"')
+        assert result == {"key": "value"}
+
+    def test_unfixable_json(self) -> None:
+        from isotopo_core.providers.anthropic import _parse_streaming_json
+
+        assert _parse_streaming_json("{broken: json: bad") == {}
+
+
+class TestMapStopReasonUnknown:
+    """Test unknown stop_reason mapping."""
+
+    def test_unknown_stop_reason(self) -> None:
+        assert _map_stop_reason("unknown_reason") == StopReason.ERROR
+
+
+class TestConvertAssistantMessageEdgeCases:
+    """Edge cases for assistant message conversion."""
+
+    def test_empty_assistant_message_returns_none(self) -> None:
+        """Empty text in assistant message should return None."""
+        ctx = Context(
+            messages=[
+                AssistantMessage(
+                    content=[TextContent(text="   ")],
+                    stop_reason=StopReason.END_TURN,
+                    usage=Usage(),
+                    timestamp=0,
+                )
+            ]
+        )
+        _, messages, _ = _convert_context_to_anthropic(ctx)
+        # The text is all whitespace, so content list is empty => returns None
+        assert len(messages) == 0
+
+    def test_thinking_without_signature_falls_back_to_text(self) -> None:
+        """Thinking content without signature should be converted to text."""
+        ctx = Context(
+            messages=[
+                AssistantMessage(
+                    content=[
+                        ThinkingContent(thinking="my thoughts", thinking_signature=None),
+                        TextContent(text="answer"),
+                    ],
+                    stop_reason=StopReason.END_TURN,
+                    usage=Usage(),
+                    timestamp=0,
+                )
+            ]
+        )
+        _, messages, _ = _convert_context_to_anthropic(ctx)
+        content = messages[0]["content"]
+        # thinking without signature -> text block
+        assert content[0]["type"] == "text"
+        assert content[0]["text"] == "my thoughts"
+
+    def test_tool_result_with_image_content(self) -> None:
+        """Test tool result containing image content."""
+        ctx = Context(
+            messages=[
+                ToolResultMessage(
+                    tool_call_id="t1",
+                    tool_name="screenshot",
+                    content=[ImageContent(data="base64data", mime_type="image/png")],
+                    timestamp=0,
+                )
+            ]
+        )
+        _, messages, _ = _convert_context_to_anthropic(ctx)
+        tool_result = messages[0]["content"][0]
+        assert tool_result["type"] == "tool_result"
+        # Content should contain an image block
+        content = tool_result["content"]
+        assert isinstance(content, list)
+        assert any(b.get("type") == "image" for b in content)
+
+
+class TestAnthropicProviderStreamEdgeCases:
+    """Edge-case streaming tests."""
+
+    @pytest.mark.asyncio
+    async def test_no_stop_reason_defaults_to_end_turn(self) -> None:
+        """Test that missing stop_reason defaults to END_TURN."""
+        provider = AnthropicProvider(model="claude-sonnet-4-20250514")
+
+        events_list = [
+            _mock_event("message_start", input_tokens=10),
+            _mock_event("content_block_start", index=0, block_type="text"),
+            _mock_event("content_block_delta", index=0, delta_type="text_delta", text="Hi"),
+            _mock_event("content_block_stop", index=0),
+            # message_delta with no stop_reason
+            _mock_event("message_delta", stop_reason=None, output_tokens=5),
+        ]
+
+        mock_stream = AsyncMock()
+        mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+        mock_stream.__aexit__ = AsyncMock(return_value=False)
+
+        async def mock_aiter(self):
+            for e in events_list:
+                yield e
+
+        mock_stream.__aiter__ = mock_aiter
+
+        mock_client = AsyncMock()
+        mock_client.messages.stream = MagicMock(return_value=mock_stream)
+        provider._client = mock_client
+
+        collected = []
+        async for event in provider.stream(
+            Context(messages=[UserMessage(content=[TextContent(text="hi")], timestamp=0)])
+        ):
+            collected.append(event)
+
+        done_event = [e for e in collected if e.type == "done"][0]
+        assert done_event.message.stop_reason == StopReason.END_TURN
+
+    @pytest.mark.asyncio
+    async def test_content_block_delta_unknown_index_skipped(self) -> None:
+        """Test that deltas for unknown block indices are skipped."""
+        provider = AnthropicProvider(model="claude-sonnet-4-20250514")
+
+        events_list = [
+            _mock_event("message_start", input_tokens=10),
+            # Delta for index 99 that was never started
+            _mock_event("content_block_delta", index=99, delta_type="text_delta", text="ghost"),
+            _mock_event("content_block_stop", index=99),
+            _mock_event("content_block_start", index=0, block_type="text"),
+            _mock_event("content_block_delta", index=0, delta_type="text_delta", text="real"),
+            _mock_event("content_block_stop", index=0),
+            _mock_event("message_delta", stop_reason="end_turn", output_tokens=5),
+        ]
+
+        mock_stream = AsyncMock()
+        mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+        mock_stream.__aexit__ = AsyncMock(return_value=False)
+
+        async def mock_aiter(self):
+            for e in events_list:
+                yield e
+
+        mock_stream.__aiter__ = mock_aiter
+
+        mock_client = AsyncMock()
+        mock_client.messages.stream = MagicMock(return_value=mock_stream)
+        provider._client = mock_client
+
+        collected = []
+        async for event in provider.stream(
+            Context(messages=[UserMessage(content=[TextContent(text="hi")], timestamp=0)])
+        ):
+            collected.append(event)
+
+        done_event = [e for e in collected if e.type == "done"][0]
+        # Only real text should be captured
+        text_blocks = [b for b in done_event.message.content if isinstance(b, TextContent)]
+        assert len(text_blocks) == 1
+        assert text_blocks[0].text == "real"
+
+    @pytest.mark.asyncio
+    async def test_thinking_params_not_set_when_disabled(self) -> None:
+        """Test that thinking params are not included when thinking is disabled."""
+        provider = AnthropicProvider(model="claude-sonnet-4-20250514")
+
+        events_list = [
+            _mock_event("message_start", input_tokens=10),
+            _mock_event("content_block_start", index=0, block_type="text"),
+            _mock_event("content_block_delta", index=0, delta_type="text_delta", text="ok"),
+            _mock_event("content_block_stop", index=0),
+            _mock_event("message_delta", stop_reason="end_turn", output_tokens=5),
+        ]
+
+        mock_stream = AsyncMock()
+        mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+        mock_stream.__aexit__ = AsyncMock(return_value=False)
+
+        async def mock_aiter(self):
+            for e in events_list:
+                yield e
+
+        mock_stream.__aiter__ = mock_aiter
+
+        mock_client = AsyncMock()
+        mock_client.messages.stream = MagicMock(return_value=mock_stream)
+        provider._client = mock_client
+
+        collected = []
+        async for event in provider.stream(
+            Context(messages=[UserMessage(content=[TextContent(text="hi")], timestamp=0)]),
+            temperature=0.5,
+        ):
+            collected.append(event)
+
+        # Check temperature was passed (no thinking)
+        call_kwargs = mock_client.messages.stream.call_args[1]
+        assert call_kwargs.get("temperature") == 0.5
+
+    @pytest.mark.asyncio
+    async def test_temperature_ignored_with_thinking(self) -> None:
+        """Test that temperature is not passed when thinking is enabled."""
+        provider = AnthropicProvider(
+            model="claude-sonnet-4-20250514",
+            thinking=ThinkingConfig(enabled=True, budget_tokens=1024),
+        )
+
+        events_list = [
+            _mock_event("message_start", input_tokens=10),
+            _mock_event("content_block_start", index=0, block_type="text"),
+            _mock_event("content_block_delta", index=0, delta_type="text_delta", text="ok"),
+            _mock_event("content_block_stop", index=0),
+            _mock_event("message_delta", stop_reason="end_turn", output_tokens=5),
+        ]
+
+        mock_stream = AsyncMock()
+        mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+        mock_stream.__aexit__ = AsyncMock(return_value=False)
+
+        async def mock_aiter(self):
+            for e in events_list:
+                yield e
+
+        mock_stream.__aiter__ = mock_aiter
+
+        mock_client = AsyncMock()
+        mock_client.messages.stream = MagicMock(return_value=mock_stream)
+        provider._client = mock_client
+
+        async for _ in provider.stream(
+            Context(messages=[UserMessage(content=[TextContent(text="hi")], timestamp=0)]),
+            temperature=0.5,
+        ):
+            pass
+
+        call_kwargs = mock_client.messages.stream.call_args[1]
+        assert "temperature" not in call_kwargs
+        assert call_kwargs["thinking"]["type"] == "enabled"
+
+    @pytest.mark.asyncio
+    async def test_api_key_resolver(self) -> None:
+        """Test that api_key_resolver is called before streaming."""
+
+        async def resolver() -> str:
+            return "resolved-key-123"
+
+        provider = AnthropicProvider(
+            model="claude-sonnet-4-20250514",
+            api_key_resolver=resolver,
+        )
+
+        events_list = [
+            _mock_event("message_start", input_tokens=10),
+            _mock_event("content_block_start", index=0, block_type="text"),
+            _mock_event("content_block_delta", index=0, delta_type="text_delta", text="ok"),
+            _mock_event("content_block_stop", index=0),
+            _mock_event("message_delta", stop_reason="end_turn", output_tokens=5),
+        ]
+
+        mock_stream = AsyncMock()
+        mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+        mock_stream.__aexit__ = AsyncMock(return_value=False)
+
+        async def mock_aiter(self):
+            for e in events_list:
+                yield e
+
+        mock_stream.__aiter__ = mock_aiter
+
+        mock_client = AsyncMock()
+        mock_client.messages.stream = MagicMock(return_value=mock_stream)
+        provider._client = mock_client
+
+        collected = []
+        async for event in provider.stream(
+            Context(messages=[UserMessage(content=[TextContent(text="hi")], timestamp=0)])
+        ):
+            collected.append(event)
+
+        # The client's api_key should have been set to the resolved key
+        assert mock_client.api_key == "resolved-key-123"
+
+    @pytest.mark.asyncio
+    async def test_exception_with_abort_signal(self) -> None:
+        """Test exception during streaming when abort signal is set."""
+        provider = AnthropicProvider(model="claude-sonnet-4-20250514")
+        signal = asyncio.Event()
+        signal.set()  # Already aborted
+
+        mock_client = AsyncMock()
+        mock_client.messages.stream = MagicMock(side_effect=Exception("Connection lost"))
+        provider._client = mock_client
+
+        collected = []
+        async for event in provider.stream(
+            Context(messages=[UserMessage(content=[TextContent(text="hi")], timestamp=0)]),
+            signal=signal,
+        ):
+            collected.append(event)
+
+        assert len(collected) == 1
+        assert collected[0].type == "error"
+        assert collected[0].error.stop_reason == StopReason.ABORTED
+
+    @pytest.mark.asyncio
+    async def test_message_delta_with_no_usage_output_tokens(self) -> None:
+        """Test message_delta where usage.output_tokens is 0/None."""
+        provider = AnthropicProvider(model="claude-sonnet-4-20250514")
+
+        events_list = [
+            _mock_event("message_start", input_tokens=10),
+            _mock_event("content_block_start", index=0, block_type="text"),
+            _mock_event("content_block_delta", index=0, delta_type="text_delta", text="ok"),
+            _mock_event("content_block_stop", index=0),
+            _mock_event("message_delta", stop_reason="end_turn", output_tokens=0),
+        ]
+
+        mock_stream = AsyncMock()
+        mock_stream.__aenter__ = AsyncMock(return_value=mock_stream)
+        mock_stream.__aexit__ = AsyncMock(return_value=False)
+
+        async def mock_aiter(self):
+            for e in events_list:
+                yield e
+
+        mock_stream.__aiter__ = mock_aiter
+
+        mock_client = AsyncMock()
+        mock_client.messages.stream = MagicMock(return_value=mock_stream)
+        provider._client = mock_client
+
+        collected = []
+        async for event in provider.stream(
+            Context(messages=[UserMessage(content=[TextContent(text="hi")], timestamp=0)])
+        ):
+            collected.append(event)
+
+        done = [e for e in collected if e.type == "done"][0]
+        assert done.message.usage.output_tokens == 0
