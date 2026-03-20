@@ -32,10 +32,12 @@ dependencies = [
 [project.optional-dependencies]
 openai = ["openai>=1.0"]
 anthropic = ["anthropic>=0.40"]
-all = ["isotopo-core[openai,anthropic]"]
+tiktoken = ["tiktoken>=0.7"]
+all = ["isotopo-core[openai,anthropic,tiktoken]"]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
     "ruff>=0.8",
     "mypy>=1.13",
 ]
