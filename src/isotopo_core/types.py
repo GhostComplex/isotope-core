@@ -87,6 +87,20 @@ class Usage(BaseModel):
         return self.input_tokens + self.output_tokens
 
 
+class AggregatedUsage(BaseModel):
+    """Aggregated usage across multiple providers in a router.
+
+    Tracks total token usage and per-provider / per-model breakdowns.
+    """
+
+    total_input_tokens: int = 0
+    total_output_tokens: int = 0
+    total_cache_read_tokens: int = 0
+    total_cache_write_tokens: int = 0
+    provider_usage: dict[str, Usage] = Field(default_factory=dict)
+    model_usage: dict[str, Usage] = Field(default_factory=dict)
+
+
 # =============================================================================
 # Message Types
 # =============================================================================

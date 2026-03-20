@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from isotopo_core.providers.base import (
@@ -246,6 +246,7 @@ class OpenAIProvider:
         base_url: str | None = None,
         organization: str | None = None,
         default_headers: dict[str, str] | None = None,
+        api_key_resolver: Callable[[], Awaitable[str]] | None = None,
     ):
         """Initialize the OpenAI provider.
 
@@ -255,13 +256,26 @@ class OpenAIProvider:
             base_url: Base URL for OpenAI-compatible proxies.
             organization: OpenAI organization ID.
             default_headers: Additional headers to include in requests.
+            api_key_resolver: Optional async callable that returns a fresh API key.
+                If provided, called before each stream() to get the current key.
         """
         self.model = model
         self._api_key = api_key
         self._base_url = base_url
         self._organization = organization
         self._default_headers = default_headers
+        self._api_key_resolver = api_key_resolver
         self._client: openai.AsyncOpenAI | None = None
+
+    @property
+    def model_name(self) -> str:
+        """Return the model identifier."""
+        return self.model
+
+    @property
+    def provider_name(self) -> str:
+        """Return the provider identifier."""
+        return "openai"
 
     def _get_client(self) -> openai.AsyncOpenAI:
         """Lazily create and return the OpenAI client."""
@@ -313,7 +327,13 @@ class OpenAIProvider:
         )
 
         try:
-            client = self._get_client()
+            # Resolve API key if resolver is provided
+            if self._api_key_resolver is not None:
+                resolved_key = await self._api_key_resolver()
+                client = self._get_client()
+                client.api_key = resolved_key
+            else:
+                client = self._get_client()
             messages, tools = _convert_context_to_openai(context)
 
             # Build request parameters

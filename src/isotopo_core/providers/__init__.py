@@ -14,6 +14,7 @@ from isotopo_core.providers.base import (
     StreamToolCallEndEvent,
     StreamToolCallStartEvent,
 )
+from isotopo_core.providers.router import CircuitState, RouterProvider
 
 # Import utilities (always available)
 from isotopo_core.providers.utils import (
@@ -40,6 +41,9 @@ __all__ = [
     "StreamToolCallEndEvent",
     "StreamDoneEvent",
     "StreamErrorEvent",
+    # Router
+    "RouterProvider",
+    "CircuitState",
     # Utilities
     "RetryConfig",
     "retry_with_backoff",
@@ -67,4 +71,12 @@ try:
     __all__.extend(["AnthropicProvider", "ThinkingConfig"])
 except ImportError:
     # anthropic SDK not installed
+    pass
+
+try:
+    from isotopo_core.providers.proxy import ProxyProvider  # noqa: F401
+
+    __all__.append("ProxyProvider")
+except ImportError:
+    # openai SDK not installed (ProxyProvider depends on it)
     pass
