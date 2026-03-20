@@ -31,6 +31,20 @@ from isotopo_core.loop import (
     TransformContextHook,
     agent_loop,
 )
+from isotopo_core.middleware import (
+    EventFilterMiddleware,
+    LifecycleHooks,
+    LoggingMiddleware,
+    Middleware,
+    MiddlewareContext,
+    OnAgentEndHook,
+    OnAgentStartHook,
+    OnErrorHook,
+    OnTurnEndHook,
+    OnTurnStartHook,
+    TokenTrackingMiddleware,
+    run_middleware_chain,
+)
 from isotopo_core.providers.base import (
     Provider,
     StreamDoneEvent,
@@ -121,6 +135,19 @@ __all__ = [
     "AfterToolCallContext",
     "AfterToolCallResult",
     "TransformContextHook",
+    # Middleware
+    "Middleware",
+    "MiddlewareContext",
+    "run_middleware_chain",
+    "LoggingMiddleware",
+    "TokenTrackingMiddleware",
+    "EventFilterMiddleware",
+    "LifecycleHooks",
+    "OnAgentStartHook",
+    "OnAgentEndHook",
+    "OnTurnStartHook",
+    "OnTurnEndHook",
+    "OnErrorHook",
     # Provider
     "Provider",
     "StreamEvent",
