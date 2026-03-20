@@ -20,11 +20,13 @@ from isotopo_core.types import (
     AgentStartEvent,
     AssistantMessage,
     Context,
+    FollowUpEvent,
     ImageContent,
     Message,
     MessageEndEvent,
     MessageStartEvent,
     MessageUpdateEvent,
+    SteerEvent,
     StopReason,
     TextContent,
     ToolCallContent,
@@ -107,6 +109,10 @@ class AgentLoopConfig:
     before_tool_call: BeforeToolCallHook | None = None
     after_tool_call: AfterToolCallHook | None = None
     transform_context: TransformContextHook | None = None
+    steering_queue: asyncio.Queue[Message] | None = None
+    follow_up_queue: asyncio.Queue[Message] | None = None
+    max_turns: int | None = None
+    max_total_tokens: int | None = None
 
 
 # =============================================================================
@@ -143,13 +149,16 @@ async def agent_loop(
     This is the core execution engine that:
     1. Emits agent_start
     2. For each turn:
+       - Checks budget limits (turn count, total tokens)
        - Emits turn_start
        - Streams user messages (if any)
        - Streams assistant response
        - Executes tool calls (if any)
+       - Checks steering queue after tool execution
+       - Checks follow-up queue when no tool calls remain
        - Emits turn_end
-    3. Repeats if there are tool calls
-    4. Emits agent_end
+    3. Repeats if there are tool calls, steering, or follow-up messages
+    4. Emits agent_end with reason
 
     Args:
         prompts: Initial messages to add to the context.
@@ -164,6 +173,10 @@ async def agent_loop(
     current_messages = list(context.messages) + list(prompts)
     new_messages: list[Message] = list(prompts)
 
+    # Budget tracking
+    turn_number = 0
+    cumulative_tokens = 0
+
     # Emit agent_start
     yield AgentStartEvent()
 
@@ -177,6 +190,34 @@ async def agent_loop(
 
     # Main loop
     while True:
+        turn_number += 1
+
+        # Check budget: max turns
+        if config.max_turns is not None and turn_number > config.max_turns:
+            yield TurnEndEvent(
+                message=AssistantMessage(
+                    content=[TextContent(text="")],
+                    stop_reason=StopReason.END_TURN,
+                    timestamp=int(time.time() * 1000),
+                ),
+                tool_results=[],
+            )
+            yield AgentEndEvent(messages=new_messages, reason="max_turns")
+            return
+
+        # Check budget: max total tokens
+        if config.max_total_tokens is not None and cumulative_tokens >= config.max_total_tokens:
+            yield TurnEndEvent(
+                message=AssistantMessage(
+                    content=[TextContent(text="")],
+                    stop_reason=StopReason.END_TURN,
+                    timestamp=int(time.time() * 1000),
+                ),
+                tool_results=[],
+            )
+            yield AgentEndEvent(messages=new_messages, reason="max_budget")
+            return
+
         # Check for abort
         if signal and signal.is_set():
             error_message = AssistantMessage(
@@ -188,7 +229,7 @@ async def agent_loop(
             yield MessageStartEvent(message=error_message)
             yield MessageEndEvent(message=error_message)
             yield TurnEndEvent(message=error_message, tool_results=[])
-            yield AgentEndEvent(messages=new_messages + [error_message])
+            yield AgentEndEvent(messages=new_messages + [error_message], reason="aborted")
             return
 
         # Apply context transform if configured
@@ -258,14 +299,22 @@ async def agent_loop(
             yield MessageStartEvent(message=assistant_message)
             yield MessageEndEvent(message=assistant_message)
 
+        # Track cumulative tokens
+        cumulative_tokens += assistant_message.usage.total_tokens
+
         # Add assistant message to context
         current_messages.append(assistant_message)
         new_messages.append(assistant_message)
 
         # Check for error or abort
-        if assistant_message.stop_reason in (StopReason.ERROR, StopReason.ABORTED):
+        if assistant_message.stop_reason == StopReason.ERROR:
             yield TurnEndEvent(message=assistant_message, tool_results=[])
-            yield AgentEndEvent(messages=new_messages)
+            yield AgentEndEvent(messages=new_messages, reason="error")
+            return
+
+        if assistant_message.stop_reason == StopReason.ABORTED:
+            yield TurnEndEvent(message=assistant_message, tool_results=[])
+            yield AgentEndEvent(messages=new_messages, reason="aborted")
             return
 
         # Extract tool calls
@@ -336,14 +385,57 @@ async def agent_loop(
         # Emit turn_end
         yield TurnEndEvent(message=assistant_message, tool_results=tool_results)
 
-        # Check if we should continue
-        if not tool_calls:
-            # No tool calls - we're done
-            yield AgentEndEvent(messages=new_messages)
-            return
+        # After tool execution: check steering queue
+        if config.steering_queue is not None:
+            steered = False
+            while not config.steering_queue.empty():
+                try:
+                    steer_msg = config.steering_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+                # Append steering message to context
+                current_messages.append(steer_msg)
+                new_messages.append(steer_msg)
+                yield SteerEvent(message=steer_msg, turn_number=turn_number)
+                yield MessageStartEvent(message=steer_msg)
+                yield MessageEndEvent(message=steer_msg)
+                steered = True
 
-        # Start a new turn for tool results
-        yield TurnStartEvent()
+            if steered:
+                # Start a new turn for the steered context
+                yield TurnStartEvent()
+                continue
+
+        # Check if we should continue
+        if tool_calls:
+            # Had tool calls — start a new turn for tool results
+            yield TurnStartEvent()
+            continue
+
+        # No tool calls — check follow-up queue before ending
+        if config.follow_up_queue is not None and not config.follow_up_queue.empty():
+            followed_up = False
+            while not config.follow_up_queue.empty():
+                try:
+                    followup_msg = config.follow_up_queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    break
+                # Append follow-up message to context
+                current_messages.append(followup_msg)
+                new_messages.append(followup_msg)
+                yield FollowUpEvent(message=followup_msg, turn_number=turn_number)
+                yield MessageStartEvent(message=followup_msg)
+                yield MessageEndEvent(message=followup_msg)
+                followed_up = True
+
+            if followed_up:
+                # Start a new turn for the follow-up
+                yield TurnStartEvent()
+                continue
+
+        # No tool calls, no steering, no follow-up — we're done
+        yield AgentEndEvent(messages=new_messages, reason="completed")
+        return
 
 
 async def _execute_tool_call(
