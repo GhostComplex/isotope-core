@@ -4,6 +4,23 @@ This module exports the public API for isotopo-core.
 """
 
 from isotopo_core.agent import Agent, AgentState
+from isotopo_core.context import (
+    MODEL_CONTEXT_WINDOWS,
+    ContextUsage,
+    PruneResult,
+    PruningStrategy,
+    SelectivePruningStrategy,
+    SlidingWindowStrategy,
+    SummarizationStrategy,
+    count_message_tokens,
+    count_tokens,
+    create_sliding_window_transform,
+    create_summarization_transform,
+    estimate_context_usage,
+    get_context_window,
+    pin_message,
+    unpin_message,
+)
 from isotopo_core.events import AgentEventStream, EventStream
 from isotopo_core.loop import (
     AfterToolCallContext,
@@ -11,6 +28,7 @@ from isotopo_core.loop import (
     AgentLoopConfig,
     BeforeToolCallContext,
     BeforeToolCallResult,
+    TransformContextHook,
     agent_loop,
 )
 from isotopo_core.providers.base import (
@@ -47,6 +65,7 @@ from isotopo_core.types import (
     AssistantMessage,
     Content,
     Context,
+    ContextPrunedEvent,
     ImageContent,
     Message,
     MessageEndEvent,
@@ -71,6 +90,22 @@ __all__ = [
     # Agent
     "Agent",
     "AgentState",
+    # Context Management
+    "MODEL_CONTEXT_WINDOWS",
+    "ContextUsage",
+    "PruneResult",
+    "PruningStrategy",
+    "SlidingWindowStrategy",
+    "SummarizationStrategy",
+    "SelectivePruningStrategy",
+    "count_tokens",
+    "count_message_tokens",
+    "estimate_context_usage",
+    "get_context_window",
+    "pin_message",
+    "unpin_message",
+    "create_sliding_window_transform",
+    "create_summarization_transform",
     # Events
     "EventStream",
     "AgentEventStream",
@@ -81,6 +116,7 @@ __all__ = [
     "BeforeToolCallResult",
     "AfterToolCallContext",
     "AfterToolCallResult",
+    "TransformContextHook",
     # Provider
     "Provider",
     "StreamEvent",
@@ -125,6 +161,7 @@ __all__ = [
     "AgentEvent",
     "AgentStartEvent",
     "AgentEndEvent",
+    "ContextPrunedEvent",
     "TurnStartEvent",
     "TurnEndEvent",
     "MessageStartEvent",
