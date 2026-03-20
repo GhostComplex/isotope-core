@@ -27,6 +27,10 @@ from isotopo_core.providers.base import (
     StreamToolCallEndEvent,
     StreamToolCallStartEvent,
 )
+from isotopo_core.providers.utils import (
+    RetryConfig,
+    retry_with_backoff,
+)
 from isotopo_core.tools import (
     Tool,
     ToolError,
@@ -90,6 +94,9 @@ __all__ = [
     "StreamToolCallEndEvent",
     "StreamDoneEvent",
     "StreamErrorEvent",
+    # Provider Utilities
+    "RetryConfig",
+    "retry_with_backoff",
     # Tools
     "Tool",
     "ToolResult",
@@ -129,3 +136,18 @@ __all__ = [
 ]
 
 __version__ = "0.1.0"
+
+# Graceful imports for optional provider dependencies
+try:
+    from isotopo_core.providers.openai import OpenAIProvider  # noqa: F401
+
+    __all__.append("OpenAIProvider")
+except ImportError:
+    pass
+
+try:
+    from isotopo_core.providers.anthropic import AnthropicProvider, ThinkingConfig  # noqa: F401
+
+    __all__.extend(["AnthropicProvider", "ThinkingConfig"])
+except ImportError:
+    pass

@@ -307,9 +307,7 @@ class TestToolWithUpdates:
                 on_update(ToolResult.text("Step 2 complete"))
             return ToolResult.text("All done")
 
-        result = await progress_task.execute(
-            "call_1", {}, on_update=lambda r: updates.append(r)
-        )
+        result = await progress_task.execute("call_1", {}, on_update=lambda r: updates.append(r))
         assert len(updates) == 2
         assert updates[0].content[0].text == "Step 1 complete"
         assert updates[1].content[0].text == "Step 2 complete"

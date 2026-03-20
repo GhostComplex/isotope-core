@@ -270,9 +270,7 @@ async def agent_loop(
 
         # Extract tool calls
         tool_calls = [
-            content
-            for content in assistant_message.content
-            if isinstance(content, ToolCallContent)
+            content for content in assistant_message.content if isinstance(content, ToolCallContent)
         ]
 
         tool_results: list[ToolResultMessage] = []
@@ -323,9 +321,7 @@ async def agent_loop(
                 results = await asyncio.gather(*tasks)
 
                 # Emit results in order
-                for _tool_call, (events, result_msg) in zip(
-                    tool_calls, results, strict=True
-                ):
+                for _tool_call, (events, result_msg) in zip(tool_calls, results, strict=True):
                     for tool_event in events:
                         yield tool_event
                     tool_results.append(result_msg)
@@ -488,15 +484,11 @@ async def _execute_tool_call_inner(
                     tool_call_id=tool_call.id,
                     tool_name=tool_call.name,
                     args=tool_call.arguments,
-                    partial_result={
-                        "content": [c.model_dump() for c in partial_result.content]
-                    },
+                    partial_result={"content": [c.model_dump() for c in partial_result.content]},
                 )
             )
 
-        result = await tool._execute(
-            tool_call.id, tool_call.arguments, signal, on_update
-        )
+        result = await tool._execute(tool_call.id, tool_call.arguments, signal, on_update)
         is_error = result.is_error
     except Exception as e:
         result = _create_error_tool_result(f"Tool execution error: {e}")
@@ -518,9 +510,7 @@ async def _execute_tool_call_inner(
             )
             if after_result:
                 if after_result.content is not None:
-                    result = ToolResult(
-                        content=after_result.content, is_error=result.is_error
-                    )
+                    result = ToolResult(content=after_result.content, is_error=result.is_error)
                 if after_result.is_error is not None:
                     is_error = after_result.is_error
         except Exception:
