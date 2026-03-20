@@ -98,6 +98,7 @@ class UserMessage(BaseModel):
     role: Literal["user"] = "user"
     content: list[TextContent | ImageContent]
     timestamp: int  # Unix timestamp in milliseconds
+    pinned: bool = False
 
 
 class AssistantMessage(BaseModel):
@@ -109,6 +110,7 @@ class AssistantMessage(BaseModel):
     usage: Usage = Field(default_factory=Usage)
     error_message: str | None = None
     timestamp: int  # Unix timestamp in milliseconds
+    pinned: bool = False
 
 
 class ToolResultMessage(BaseModel):
@@ -120,6 +122,7 @@ class ToolResultMessage(BaseModel):
     content: list[TextContent | ImageContent]
     is_error: bool = False
     timestamp: int  # Unix timestamp in milliseconds
+    pinned: bool = False
 
 
 # Union of all message types
@@ -230,6 +233,16 @@ class ToolEndEvent(BaseModel):
     is_error: bool = False
 
 
+class ContextPrunedEvent(BaseModel):
+    """Emitted when context is pruned."""
+
+    type: Literal["context_pruned"] = "context_pruned"
+    strategy: str
+    pruned_count: int
+    pruned_tokens: int
+    remaining_tokens: int
+
+
 # Union of all event types (discriminated by type field)
 AgentEvent = (
     AgentStartEvent
@@ -242,4 +255,5 @@ AgentEvent = (
     | ToolStartEvent
     | ToolUpdateEvent
     | ToolEndEvent
+    | ContextPrunedEvent
 )
