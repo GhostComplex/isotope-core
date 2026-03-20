@@ -12,6 +12,11 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from isotopo_core.middleware import (
+    LifecycleHooks,
+    MiddlewareContext,
+    run_middleware_chain,
+)
 from isotopo_core.providers.base import Provider
 from isotopo_core.tools import Tool, ToolResult
 from isotopo_core.types import (
@@ -113,6 +118,8 @@ class AgentLoopConfig:
     follow_up_queue: asyncio.Queue[Message] | None = None
     max_turns: int | None = None
     max_total_tokens: int | None = None
+    middleware: list[Any] | None = None  # list[Middleware]
+    lifecycle_hooks: LifecycleHooks | None = None
 
 
 # =============================================================================
@@ -177,45 +184,103 @@ async def agent_loop(
     turn_number = 0
     cumulative_tokens = 0
 
+    # Middleware chain setup (built once per loop run)
+    mw_list: list[Any] = config.middleware or []
+    hooks = config.lifecycle_hooks
+
+    # Middleware context (mutated in-place as state changes)
+    mw_ctx = MiddlewareContext(
+        messages=current_messages,
+        turn_number=turn_number,
+        cumulative_tokens=cumulative_tokens,
+        agent_config=config,
+    )
+
+    async def _emit(event: AgentEvent) -> AgentEvent | None:
+        """Run an event through the middleware chain."""
+        if mw_list:
+            return await run_middleware_chain(event, mw_ctx, mw_list)
+        return event
+
+    async def _call_hook(hook: Callable[..., Awaitable[None]], *args: Any) -> None:
+        """Call a lifecycle hook, catching and suppressing errors."""
+        try:
+            await hook(*args)
+        except Exception:
+            import logging as _logging
+
+            _logging.getLogger(__name__).exception("Lifecycle hook error")
+
     # Emit agent_start
-    yield AgentStartEvent()
+    start_evt = await _emit(AgentStartEvent())
+    if start_evt is not None:
+        yield start_evt
+    if hooks and hooks.on_agent_start:
+        await _call_hook(hooks.on_agent_start)
 
     # Emit turn_start
-    yield TurnStartEvent()
+    ts_evt = await _emit(TurnStartEvent())
+    if ts_evt is not None:
+        yield ts_evt
 
     # Emit message events for the initial prompts
     for prompt in prompts:
-        yield MessageStartEvent(message=prompt)
-        yield MessageEndEvent(message=prompt)
+        ms_evt = await _emit(MessageStartEvent(message=prompt))
+        if ms_evt is not None:
+            yield ms_evt
+        me_evt = await _emit(MessageEndEvent(message=prompt))
+        if me_evt is not None:
+            yield me_evt
 
     # Main loop
     while True:
         turn_number += 1
+        mw_ctx.turn_number = turn_number
+
+        # Invoke on_turn_start hook
+        if hooks and hooks.on_turn_start:
+            await _call_hook(hooks.on_turn_start, turn_number)
 
         # Check budget: max turns
         if config.max_turns is not None and turn_number > config.max_turns:
-            yield TurnEndEvent(
-                message=AssistantMessage(
-                    content=[TextContent(text="")],
-                    stop_reason=StopReason.END_TURN,
-                    timestamp=int(time.time() * 1000),
-                ),
-                tool_results=[],
+            te_evt = await _emit(
+                TurnEndEvent(
+                    message=AssistantMessage(
+                        content=[TextContent(text="")],
+                        stop_reason=StopReason.END_TURN,
+                        timestamp=int(time.time() * 1000),
+                    ),
+                    tool_results=[],
+                )
             )
-            yield AgentEndEvent(messages=new_messages, reason="max_turns")
+            if te_evt is not None:
+                yield te_evt
+            ae_evt = await _emit(AgentEndEvent(messages=new_messages, reason="max_turns"))
+            if ae_evt is not None:
+                yield ae_evt
+            if hooks and hooks.on_agent_end:
+                await _call_hook(hooks.on_agent_end, "max_turns")
             return
 
         # Check budget: max total tokens
         if config.max_total_tokens is not None and cumulative_tokens >= config.max_total_tokens:
-            yield TurnEndEvent(
-                message=AssistantMessage(
-                    content=[TextContent(text="")],
-                    stop_reason=StopReason.END_TURN,
-                    timestamp=int(time.time() * 1000),
-                ),
-                tool_results=[],
+            te_evt = await _emit(
+                TurnEndEvent(
+                    message=AssistantMessage(
+                        content=[TextContent(text="")],
+                        stop_reason=StopReason.END_TURN,
+                        timestamp=int(time.time() * 1000),
+                    ),
+                    tool_results=[],
+                )
             )
-            yield AgentEndEvent(messages=new_messages, reason="max_budget")
+            if te_evt is not None:
+                yield te_evt
+            ae_evt = await _emit(AgentEndEvent(messages=new_messages, reason="max_budget"))
+            if ae_evt is not None:
+                yield ae_evt
+            if hooks and hooks.on_agent_end:
+                await _call_hook(hooks.on_agent_end, "max_budget")
             return
 
         # Check for abort
@@ -226,10 +291,22 @@ async def agent_loop(
                 error_message="Aborted by user",
                 timestamp=int(time.time() * 1000),
             )
-            yield MessageStartEvent(message=error_message)
-            yield MessageEndEvent(message=error_message)
-            yield TurnEndEvent(message=error_message, tool_results=[])
-            yield AgentEndEvent(messages=new_messages + [error_message], reason="aborted")
+            ms_evt = await _emit(MessageStartEvent(message=error_message))
+            if ms_evt is not None:
+                yield ms_evt
+            me_evt = await _emit(MessageEndEvent(message=error_message))
+            if me_evt is not None:
+                yield me_evt
+            te_evt = await _emit(TurnEndEvent(message=error_message, tool_results=[]))
+            if te_evt is not None:
+                yield te_evt
+            ae_evt = await _emit(
+                AgentEndEvent(messages=new_messages + [error_message], reason="aborted")
+            )
+            if ae_evt is not None:
+                yield ae_evt
+            if hooks and hooks.on_agent_end:
+                await _call_hook(hooks.on_agent_end, "aborted")
             return
 
         # Apply context transform if configured
@@ -251,42 +328,61 @@ async def agent_loop(
         assistant_message: AssistantMessage | None = None
         message_started = False
 
-        async for event in config.provider.stream(
-            llm_context,
-            temperature=config.temperature,
-            max_tokens=config.max_tokens,
-            signal=signal,
-        ):
-            if event.type == "start":
-                assistant_message = event.partial
-                yield MessageStartEvent(message=assistant_message)
-                message_started = True
-
-            elif event.type in (
-                "text_delta",
-                "text_end",
-                "thinking_delta",
-                "thinking_end",
-                "tool_call_start",
-                "tool_call_delta",
-                "tool_call_end",
+        try:
+            async for event in config.provider.stream(
+                llm_context,
+                temperature=config.temperature,
+                max_tokens=config.max_tokens,
+                signal=signal,
             ):
-                if hasattr(event, "partial"):
+                if event.type == "start":
                     assistant_message = event.partial
-                    delta = getattr(event, "delta", None)
-                    yield MessageUpdateEvent(message=assistant_message, delta=delta)
+                    ms_evt = await _emit(MessageStartEvent(message=assistant_message))
+                    if ms_evt is not None:
+                        yield ms_evt
+                    message_started = True
 
-            elif event.type == "done":
-                assistant_message = event.message
-                if not message_started:
-                    yield MessageStartEvent(message=assistant_message)
-                yield MessageEndEvent(message=assistant_message)
+                elif event.type in (
+                    "text_delta",
+                    "text_end",
+                    "thinking_delta",
+                    "thinking_end",
+                    "tool_call_start",
+                    "tool_call_delta",
+                    "tool_call_end",
+                ):
+                    if hasattr(event, "partial"):
+                        assistant_message = event.partial
+                        delta = getattr(event, "delta", None)
+                        mu_evt = await _emit(
+                            MessageUpdateEvent(message=assistant_message, delta=delta)
+                        )
+                        if mu_evt is not None:
+                            yield mu_evt
 
-            elif event.type == "error":
-                assistant_message = event.error
-                if not message_started:
-                    yield MessageStartEvent(message=assistant_message)
-                yield MessageEndEvent(message=assistant_message)
+                elif event.type == "done":
+                    assistant_message = event.message
+                    if not message_started:
+                        ms_evt = await _emit(MessageStartEvent(message=assistant_message))
+                        if ms_evt is not None:
+                            yield ms_evt
+                    me_evt = await _emit(MessageEndEvent(message=assistant_message))
+                    if me_evt is not None:
+                        yield me_evt
+
+                elif event.type == "error":
+                    assistant_message = event.error
+                    if not message_started:
+                        ms_evt = await _emit(MessageStartEvent(message=assistant_message))
+                        if ms_evt is not None:
+                            yield ms_evt
+                    me_evt = await _emit(MessageEndEvent(message=assistant_message))
+                    if me_evt is not None:
+                        yield me_evt
+        except Exception as exc:
+            if hooks and hooks.on_error:
+                await _call_hook(hooks.on_error, exc)
+            raise
 
         if assistant_message is None:
             # Provider didn't yield any events - create an error message
@@ -296,11 +392,16 @@ async def agent_loop(
                 error_message="No response from provider",
                 timestamp=int(time.time() * 1000),
             )
-            yield MessageStartEvent(message=assistant_message)
-            yield MessageEndEvent(message=assistant_message)
+            ms_evt = await _emit(MessageStartEvent(message=assistant_message))
+            if ms_evt is not None:
+                yield ms_evt
+            me_evt = await _emit(MessageEndEvent(message=assistant_message))
+            if me_evt is not None:
+                yield me_evt
 
         # Track cumulative tokens
         cumulative_tokens += assistant_message.usage.total_tokens
+        mw_ctx.cumulative_tokens = cumulative_tokens
 
         # Add assistant message to context
         current_messages.append(assistant_message)
@@ -308,13 +409,34 @@ async def agent_loop(
 
         # Check for error or abort
         if assistant_message.stop_reason == StopReason.ERROR:
-            yield TurnEndEvent(message=assistant_message, tool_results=[])
-            yield AgentEndEvent(messages=new_messages, reason="error")
+            te_evt = await _emit(TurnEndEvent(message=assistant_message, tool_results=[]))
+            if te_evt is not None:
+                yield te_evt
+            if hooks and hooks.on_turn_end:
+                await _call_hook(hooks.on_turn_end, turn_number, assistant_message)
+            if hooks and hooks.on_error:
+                await _call_hook(
+                    hooks.on_error,
+                    Exception(assistant_message.error_message or "Unknown error"),
+                )
+            ae_evt = await _emit(AgentEndEvent(messages=new_messages, reason="error"))
+            if ae_evt is not None:
+                yield ae_evt
+            if hooks and hooks.on_agent_end:
+                await _call_hook(hooks.on_agent_end, "error")
             return
 
         if assistant_message.stop_reason == StopReason.ABORTED:
-            yield TurnEndEvent(message=assistant_message, tool_results=[])
-            yield AgentEndEvent(messages=new_messages, reason="aborted")
+            te_evt = await _emit(TurnEndEvent(message=assistant_message, tool_results=[]))
+            if te_evt is not None:
+                yield te_evt
+            if hooks and hooks.on_turn_end:
+                await _call_hook(hooks.on_turn_end, turn_number, assistant_message)
+            ae_evt = await _emit(AgentEndEvent(messages=new_messages, reason="aborted"))
+            if ae_evt is not None:
+                yield ae_evt
+            if hooks and hooks.on_agent_end:
+                await _call_hook(hooks.on_agent_end, "aborted")
             return
 
         # Extract tool calls
@@ -340,17 +462,23 @@ async def agent_loop(
                         signal,
                     )
                     async for tool_event in result[0]:
-                        yield tool_event
+                        te_out = await _emit(tool_event)
+                        if te_out is not None:
+                            yield te_out
                     tool_results.append(result[1])
             else:
                 # Parallel execution
                 # First emit all tool_start events
                 for tool_call in tool_calls:
-                    yield ToolStartEvent(
-                        tool_call_id=tool_call.id,
-                        tool_name=tool_call.name,
-                        args=tool_call.arguments,
+                    ts_out = await _emit(
+                        ToolStartEvent(
+                            tool_call_id=tool_call.id,
+                            tool_name=tool_call.name,
+                            args=tool_call.arguments,
+                        )
                     )
+                    if ts_out is not None:
+                        yield ts_out
 
                 # Execute in parallel
                 tasks = [
@@ -372,18 +500,28 @@ async def agent_loop(
                 # Emit results in order
                 for _tool_call, (events, result_msg) in zip(tool_calls, results, strict=True):
                     for tool_event in events:
-                        yield tool_event
+                        te_out = await _emit(tool_event)
+                        if te_out is not None:
+                            yield te_out
                     tool_results.append(result_msg)
 
             # Add tool results to context
             for result_msg in tool_results:
                 current_messages.append(result_msg)
                 new_messages.append(result_msg)
-                yield MessageStartEvent(message=result_msg)
-                yield MessageEndEvent(message=result_msg)
+                ms_evt = await _emit(MessageStartEvent(message=result_msg))
+                if ms_evt is not None:
+                    yield ms_evt
+                me_evt = await _emit(MessageEndEvent(message=result_msg))
+                if me_evt is not None:
+                    yield me_evt
 
         # Emit turn_end
-        yield TurnEndEvent(message=assistant_message, tool_results=tool_results)
+        te_evt = await _emit(TurnEndEvent(message=assistant_message, tool_results=tool_results))
+        if te_evt is not None:
+            yield te_evt
+        if hooks and hooks.on_turn_end:
+            await _call_hook(hooks.on_turn_end, turn_number, assistant_message)
 
         # After tool execution: check steering queue
         if config.steering_queue is not None:
@@ -396,20 +534,30 @@ async def agent_loop(
                 # Append steering message to context
                 current_messages.append(steer_msg)
                 new_messages.append(steer_msg)
-                yield SteerEvent(message=steer_msg, turn_number=turn_number)
-                yield MessageStartEvent(message=steer_msg)
-                yield MessageEndEvent(message=steer_msg)
+                se_evt = await _emit(SteerEvent(message=steer_msg, turn_number=turn_number))
+                if se_evt is not None:
+                    yield se_evt
+                ms_evt = await _emit(MessageStartEvent(message=steer_msg))
+                if ms_evt is not None:
+                    yield ms_evt
+                me_evt = await _emit(MessageEndEvent(message=steer_msg))
+                if me_evt is not None:
+                    yield me_evt
                 steered = True
 
             if steered:
                 # Start a new turn for the steered context
-                yield TurnStartEvent()
+                ts_evt = await _emit(TurnStartEvent())
+                if ts_evt is not None:
+                    yield ts_evt
                 continue
 
         # Check if we should continue
         if tool_calls:
             # Had tool calls — start a new turn for tool results
-            yield TurnStartEvent()
+            ts_evt = await _emit(TurnStartEvent())
+            if ts_evt is not None:
+                yield ts_evt
             continue
 
         # No tool calls — check follow-up queue before ending
@@ -423,18 +571,32 @@ async def agent_loop(
                 # Append follow-up message to context
                 current_messages.append(followup_msg)
                 new_messages.append(followup_msg)
-                yield FollowUpEvent(message=followup_msg, turn_number=turn_number)
-                yield MessageStartEvent(message=followup_msg)
-                yield MessageEndEvent(message=followup_msg)
+                fu_evt = await _emit(
+                    FollowUpEvent(message=followup_msg, turn_number=turn_number)
+                )
+                if fu_evt is not None:
+                    yield fu_evt
+                ms_evt = await _emit(MessageStartEvent(message=followup_msg))
+                if ms_evt is not None:
+                    yield ms_evt
+                me_evt = await _emit(MessageEndEvent(message=followup_msg))
+                if me_evt is not None:
+                    yield me_evt
                 followed_up = True
 
             if followed_up:
                 # Start a new turn for the follow-up
-                yield TurnStartEvent()
+                ts_evt = await _emit(TurnStartEvent())
+                if ts_evt is not None:
+                    yield ts_evt
                 continue
 
         # No tool calls, no steering, no follow-up — we're done
-        yield AgentEndEvent(messages=new_messages, reason="completed")
+        ae_evt = await _emit(AgentEndEvent(messages=new_messages, reason="completed"))
+        if ae_evt is not None:
+            yield ae_evt
+        if hooks and hooks.on_agent_end:
+            await _call_hook(hooks.on_agent_end, "completed")
         return
 
 

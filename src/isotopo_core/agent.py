@@ -19,6 +19,14 @@ from isotopo_core.loop import (
     TransformContextHook,
     agent_loop,
 )
+from isotopo_core.middleware import (
+    LifecycleHooks,
+    OnAgentEndHook,
+    OnAgentStartHook,
+    OnErrorHook,
+    OnTurnEndHook,
+    OnTurnStartHook,
+)
 from isotopo_core.providers.base import Provider
 from isotopo_core.tools import Tool
 from isotopo_core.types import (
@@ -87,6 +95,12 @@ class Agent:
         before_tool_call: BeforeToolCallHook | None = None,
         after_tool_call: AfterToolCallHook | None = None,
         transform_context: TransformContextHook | None = None,
+        on_agent_start: OnAgentStartHook | None = None,
+        on_agent_end: OnAgentEndHook | None = None,
+        on_turn_start: OnTurnStartHook | None = None,
+        on_turn_end: OnTurnEndHook | None = None,
+        on_error: OnErrorHook | None = None,
+        middleware: list[object] | None = None,
     ):
         """Initialize the Agent.
 
@@ -102,6 +116,12 @@ class Agent:
             before_tool_call: Hook called before each tool execution.
             after_tool_call: Hook called after each tool execution.
             transform_context: Hook to transform context before LLM calls.
+            on_agent_start: Lifecycle hook called when agent starts.
+            on_agent_end: Lifecycle hook called when agent ends (with reason).
+            on_turn_start: Lifecycle hook called when a turn starts (with turn_number).
+            on_turn_end: Lifecycle hook called when a turn ends (with turn_number, message).
+            on_error: Lifecycle hook called on errors (with exception).
+            middleware: List of middleware instances for event processing.
         """
         self._state = AgentState(
             system_prompt=system_prompt,
@@ -116,6 +136,12 @@ class Agent:
         self._before_tool_call = before_tool_call
         self._after_tool_call = after_tool_call
         self._transform_context = transform_context
+        self._on_agent_start = on_agent_start
+        self._on_agent_end = on_agent_end
+        self._on_turn_start = on_turn_start
+        self._on_turn_end = on_turn_end
+        self._on_error = on_error
+        self._middleware = middleware
 
         self._listeners: list[Callable[[AgentEvent], None]] = []
         self._abort_signal: asyncio.Event | None = None
@@ -372,6 +398,14 @@ class Agent:
                 follow_up_queue=self._follow_up_queue,
                 max_turns=self._max_turns,
                 max_total_tokens=self._max_total_tokens,
+                middleware=self._middleware,
+                lifecycle_hooks=LifecycleHooks(
+                    on_agent_start=self._on_agent_start,
+                    on_agent_end=self._on_agent_end,
+                    on_turn_start=self._on_turn_start,
+                    on_turn_end=self._on_turn_end,
+                    on_error=self._on_error,
+                ),
             )
 
             async for event in agent_loop(prompts, context, config, self._abort_signal):
