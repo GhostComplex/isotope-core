@@ -166,6 +166,7 @@ class AgentEndEvent(BaseModel):
 
     type: Literal["agent_end"] = "agent_end"
     messages: list[Message] = Field(default_factory=list)
+    reason: str = "completed"
 
 
 class TurnStartEvent(BaseModel):
@@ -243,6 +244,22 @@ class ContextPrunedEvent(BaseModel):
     remaining_tokens: int
 
 
+class SteerEvent(BaseModel):
+    """Emitted when a steering message is processed."""
+
+    type: Literal["steer"] = "steer"
+    message: Message
+    turn_number: int
+
+
+class FollowUpEvent(BaseModel):
+    """Emitted when a follow-up message triggers a new turn."""
+
+    type: Literal["follow_up"] = "follow_up"
+    message: Message
+    turn_number: int
+
+
 # Union of all event types (discriminated by type field)
 AgentEvent = (
     AgentStartEvent
@@ -256,4 +273,6 @@ AgentEvent = (
     | ToolUpdateEvent
     | ToolEndEvent
     | ContextPrunedEvent
+    | SteerEvent
+    | FollowUpEvent
 )

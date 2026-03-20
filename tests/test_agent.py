@@ -368,15 +368,19 @@ class TestAgentContinue:
                 pass
 
     @pytest.mark.asyncio
-    async def test_continue_fails_from_assistant_message(self, agent: Agent) -> None:
-        """Test that continue_ fails when last message is from assistant."""
+    async def test_continue_works_from_assistant_message(self, agent: Agent) -> None:
+        """Test that continue_ works when last message is from assistant (e.g. after max_tokens)."""
         async for _ in agent.prompt("Hello"):
             pass
 
-        # Last message is now from assistant
-        with pytest.raises(RuntimeError, match="Cannot continue from an assistant"):
-            async for _ in agent.continue_():
-                pass
+        # Last message is now from assistant — continue_ should work
+        events = []
+        async for event in agent.continue_():
+            events.append(event)
+
+        event_types = [e.type for e in events]
+        assert "agent_start" in event_types
+        assert "agent_end" in event_types
 
 
 # =============================================================================

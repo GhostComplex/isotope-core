@@ -61,6 +61,7 @@ class Agent:
     The Agent class provides:
     - State management for messages, tools, and configuration
     - High-level prompt() and continue_() methods
+    - Steering and follow-up message injection
     - Abort support via asyncio.Event
     - Subscription system for event notifications
 
@@ -81,6 +82,8 @@ class Agent:
         tool_execution: str = "parallel",
         temperature: float | None = None,
         max_tokens: int | None = None,
+        max_turns: int | None = None,
+        max_total_tokens: int | None = None,
         before_tool_call: BeforeToolCallHook | None = None,
         after_tool_call: AfterToolCallHook | None = None,
         transform_context: TransformContextHook | None = None,
@@ -93,7 +96,9 @@ class Agent:
             tools: Initial list of tools.
             tool_execution: "parallel" or "sequential" tool execution.
             temperature: Sampling temperature.
-            max_tokens: Maximum tokens to generate.
+            max_tokens: Maximum tokens to generate per turn.
+            max_turns: Maximum number of turns before stopping.
+            max_total_tokens: Maximum cumulative tokens before stopping.
             before_tool_call: Hook called before each tool execution.
             after_tool_call: Hook called after each tool execution.
             transform_context: Hook to transform context before LLM calls.
@@ -106,6 +111,8 @@ class Agent:
         self._tool_execution = tool_execution
         self._temperature = temperature
         self._max_tokens = max_tokens
+        self._max_turns = max_turns
+        self._max_total_tokens = max_total_tokens
         self._before_tool_call = before_tool_call
         self._after_tool_call = after_tool_call
         self._transform_context = transform_context
@@ -113,6 +120,8 @@ class Agent:
         self._listeners: list[Callable[[AgentEvent], None]] = []
         self._abort_signal: asyncio.Event | None = None
         self._running_task: asyncio.Task[None] | None = None
+        self._steering_queue: asyncio.Queue[Message] = asyncio.Queue()
+        self._follow_up_queue: asyncio.Queue[Message] = asyncio.Queue()
 
     # =========================================================================
     # Properties
@@ -201,9 +210,65 @@ class Agent:
     # =========================================================================
 
     def abort(self) -> None:
-        """Abort the current operation."""
+        """Abort the current operation.
+
+        Safe to call multiple times (idempotent). Clears the steering and
+        follow-up queues to prevent further processing.
+        """
         if self._abort_signal:
             self._abort_signal.set()
+
+        # Drain queues to prevent stale messages on next run
+        self._drain_queue(self._steering_queue)
+        self._drain_queue(self._follow_up_queue)
+
+    @staticmethod
+    def _drain_queue(queue: asyncio.Queue[Message]) -> None:
+        """Drain all items from a queue."""
+        while not queue.empty():
+            try:
+                queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+
+    # =========================================================================
+    # Steering & Follow-up
+    # =========================================================================
+
+    def steer(self, message: str | Message) -> None:
+        """Inject a steering message into the running agent loop.
+
+        The message is appended to the context after the current turn's tool
+        calls finish, and a new LLM turn begins with the steered context.
+
+        Args:
+            message: A text string or a Message object to inject.
+        """
+        msg = self._coerce_message(message)
+        self._steering_queue.put_nowait(msg)
+
+    def follow_up(self, message: str | Message) -> None:
+        """Queue a follow-up message for after the agent would normally stop.
+
+        When the agent reaches end_turn (no more tool calls), it checks the
+        follow-up queue. If messages are queued, they are appended and a new
+        turn starts instead of ending.
+
+        Args:
+            message: A text string or a Message object to queue.
+        """
+        msg = self._coerce_message(message)
+        self._follow_up_queue.put_nowait(msg)
+
+    @staticmethod
+    def _coerce_message(message: str | Message) -> Message:
+        """Convert a string to a UserMessage if needed."""
+        if isinstance(message, str):
+            return UserMessage(
+                content=[TextContent(text=message)],
+                timestamp=int(time.time() * 1000),
+            )
+        return message
 
     # =========================================================================
     # Prompt Methods
@@ -252,14 +317,14 @@ class Agent:
     async def continue_(self) -> AsyncGenerator[AgentEvent, None]:
         """Continue from the current context.
 
-        Used for retries or resuming after tool results.
+        Used for retries or resuming after max_tokens / errors.
+        Re-sends the existing message history without adding a new user message.
 
         Yields:
             AgentEvent: Events from the agent loop.
 
         Raises:
-            RuntimeError: If agent is already streaming, no messages exist,
-                          or the last message is from the assistant.
+            RuntimeError: If agent is already streaming or no messages exist.
         """
         if self._state.is_streaming:
             raise RuntimeError("Agent is already processing.")
@@ -269,13 +334,6 @@ class Agent:
 
         if not self._state.messages:
             raise RuntimeError("No messages to continue from.")
-
-        last_message = self._state.messages[-1]
-        if isinstance(last_message, AssistantMessage):
-            raise RuntimeError(
-                "Cannot continue from an assistant message. "
-                "Add a user message or tool result first."
-            )
 
         async for event in self._run_loop([]):
             yield event
@@ -310,6 +368,10 @@ class Agent:
                 before_tool_call=self._before_tool_call,
                 after_tool_call=self._after_tool_call,
                 transform_context=self._transform_context,
+                steering_queue=self._steering_queue,
+                follow_up_queue=self._follow_up_queue,
+                max_turns=self._max_turns,
+                max_total_tokens=self._max_total_tokens,
             )
 
             async for event in agent_loop(prompts, context, config, self._abort_signal):
