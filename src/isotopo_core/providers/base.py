@@ -143,6 +143,16 @@ class Provider(Protocol):
     - The final AssistantMessage must have appropriate stop_reason
     """
 
+    @property
+    def model_name(self) -> str:
+        """Return the model identifier used by this provider."""
+        ...
+
+    @property
+    def provider_name(self) -> str:
+        """Return the provider identifier (e.g. 'openai', 'anthropic', 'proxy', 'router')."""
+        ...
+
     def stream(
         self,
         context: Context,

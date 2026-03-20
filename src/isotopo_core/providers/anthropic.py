@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -303,6 +303,7 @@ class AnthropicProvider:
         base_url: str | None = None,
         max_tokens: int = 8192,
         thinking: ThinkingConfig | None = None,
+        api_key_resolver: Callable[[], Awaitable[str]] | None = None,
     ):
         """Initialize the Anthropic provider.
 
@@ -312,13 +313,26 @@ class AnthropicProvider:
             base_url: Base URL for the API.
             max_tokens: Default maximum tokens to generate.
             thinking: Extended thinking configuration.
+            api_key_resolver: Optional async callable that returns a fresh API key.
+                If provided, called before each stream() to get the current key.
         """
         self.model = model
         self._api_key = api_key
         self._base_url = base_url
         self._default_max_tokens = max_tokens
         self._thinking = thinking
+        self._api_key_resolver = api_key_resolver
         self._client: anthropic.AsyncAnthropic | None = None
+
+    @property
+    def model_name(self) -> str:
+        """Return the model identifier."""
+        return self.model
+
+    @property
+    def provider_name(self) -> str:
+        """Return the provider identifier."""
+        return "anthropic"
 
     def _get_client(self) -> anthropic.AsyncAnthropic:
         """Lazily create and return the Anthropic client."""
@@ -371,7 +385,13 @@ class AnthropicProvider:
         )
 
         try:
-            client = self._get_client()
+            # Resolve API key if resolver is provided
+            if self._api_key_resolver is not None:
+                resolved_key = await self._api_key_resolver()
+                client = self._get_client()
+                client.api_key = resolved_key
+            else:
+                client = self._get_client()
             system, messages, tools = _convert_context_to_anthropic(context)
 
             # Build request parameters

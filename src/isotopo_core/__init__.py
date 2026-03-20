@@ -45,6 +45,7 @@ from isotopo_core.providers.base import (
     StreamToolCallEndEvent,
     StreamToolCallStartEvent,
 )
+from isotopo_core.providers.router import CircuitState, RouterProvider
 from isotopo_core.providers.utils import (
     RetryConfig,
     retry_with_backoff,
@@ -62,6 +63,7 @@ from isotopo_core.types import (
     AgentEndEvent,
     AgentEvent,
     AgentStartEvent,
+    AggregatedUsage,
     AssistantMessage,
     Content,
     Context,
@@ -132,6 +134,9 @@ __all__ = [
     "StreamToolCallEndEvent",
     "StreamDoneEvent",
     "StreamErrorEvent",
+    # Router
+    "RouterProvider",
+    "CircuitState",
     # Provider Utilities
     "RetryConfig",
     "retry_with_backoff",
@@ -158,6 +163,7 @@ __all__ = [
     "Context",
     "ToolSchema",
     "Usage",
+    "AggregatedUsage",
     "StopReason",
     # Types - Events
     "AgentEvent",
@@ -190,5 +196,12 @@ try:
     from isotopo_core.providers.anthropic import AnthropicProvider, ThinkingConfig  # noqa: F401
 
     __all__.extend(["AnthropicProvider", "ThinkingConfig"])
+except ImportError:
+    pass
+
+try:
+    from isotopo_core.providers.proxy import ProxyProvider  # noqa: F401
+
+    __all__.append("ProxyProvider")
 except ImportError:
     pass
