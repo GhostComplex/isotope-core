@@ -242,9 +242,7 @@ class Agent:
             content: list[TextContent | ImageContent] = [TextContent(text=text)]
             if images:
                 content.extend(images)
-            prompt_messages = [
-                UserMessage(content=content, timestamp=int(time.time() * 1000))
-            ]
+            prompt_messages = [UserMessage(content=content, timestamp=int(time.time() * 1000))]
         else:
             raise ValueError("Either text or messages must be provided")
 
@@ -286,9 +284,7 @@ class Agent:
     # Internal Loop
     # =========================================================================
 
-    async def _run_loop(
-        self, prompts: list[Message]
-    ) -> AsyncGenerator[AgentEvent, None]:
+    async def _run_loop(self, prompts: list[Message]) -> AsyncGenerator[AgentEvent, None]:
         """Run the agent loop with the given prompts."""
         if self._state.provider is None:
             raise RuntimeError("No provider configured")
@@ -316,9 +312,7 @@ class Agent:
                 transform_context=self._transform_context,
             )
 
-            async for event in agent_loop(
-                prompts, context, config, self._abort_signal
-            ):
+            async for event in agent_loop(prompts, context, config, self._abort_signal):
                 # Update state based on event type
                 self._process_event(event)
 

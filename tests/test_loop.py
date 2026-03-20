@@ -164,9 +164,7 @@ class TestAgentLoopBasic:
     """Basic tests for the agent loop."""
 
     @pytest.mark.asyncio
-    async def test_simple_prompt_response(
-        self, simple_response: AssistantMessage
-    ) -> None:
+    async def test_simple_prompt_response(self, simple_response: AssistantMessage) -> None:
         """Test a simple prompt/response cycle."""
         provider = MockProvider([simple_response])
         config = AgentLoopConfig(provider=provider)
@@ -191,9 +189,7 @@ class TestAgentLoopBasic:
         assert "agent_end" in event_types
 
     @pytest.mark.asyncio
-    async def test_context_passed_to_provider(
-        self, simple_response: AssistantMessage
-    ) -> None:
+    async def test_context_passed_to_provider(self, simple_response: AssistantMessage) -> None:
         """Test that context is properly passed to the provider."""
         provider = MockProvider([simple_response])
         config = AgentLoopConfig(provider=provider)
@@ -420,7 +416,8 @@ class TestAgentLoopHooks:
 
         # Find the message_end for the tool result
         message_ends = [
-            e for e in events
+            e
+            for e in events
             if e.type == "message_end" and hasattr(e.message, "tool_call_id")  # type: ignore[union-attr]
         ]
         assert len(message_ends) == 1
@@ -466,15 +463,11 @@ class TestAgentLoopTransformContext:
     """Tests for context transformation."""
 
     @pytest.mark.asyncio
-    async def test_transform_context_hook(
-        self, simple_response: AssistantMessage
-    ) -> None:
+    async def test_transform_context_hook(self, simple_response: AssistantMessage) -> None:
         """Test that transform_context hook is called."""
         transform_called = False
 
-        async def transform(
-            messages: list[Any], signal: asyncio.Event | None
-        ) -> list[Any]:
+        async def transform(messages: list[Any], signal: asyncio.Event | None) -> list[Any]:
             nonlocal transform_called
             transform_called = True
             return messages
@@ -502,9 +495,7 @@ class TestAgentLoopTransformContext:
     ) -> None:
         """Test that transform_context can modify the message list."""
 
-        async def transform(
-            messages: list[Any], signal: asyncio.Event | None
-        ) -> list[Any]:
+        async def transform(messages: list[Any], signal: asyncio.Event | None) -> list[Any]:
             # Only keep the last message (simulating context pruning)
             return messages[-1:] if messages else messages
 

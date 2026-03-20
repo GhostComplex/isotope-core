@@ -15,7 +15,19 @@ from isotopo_core.providers.base import (
     StreamToolCallStartEvent,
 )
 
+# Import utilities (always available)
+from isotopo_core.providers.utils import (
+    RetryConfig,
+    create_error_message,
+    current_timestamp_ms,
+    get_retry_after,
+    is_retryable_error,
+    map_error_to_stop_reason,
+    retry_with_backoff,
+)
+
 __all__ = [
+    # Base provider protocol and events
     "Provider",
     "StreamEvent",
     "StreamStartEvent",
@@ -28,4 +40,31 @@ __all__ = [
     "StreamToolCallEndEvent",
     "StreamDoneEvent",
     "StreamErrorEvent",
+    # Utilities
+    "RetryConfig",
+    "retry_with_backoff",
+    "is_retryable_error",
+    "get_retry_after",
+    "map_error_to_stop_reason",
+    "create_error_message",
+    "current_timestamp_ms",
 ]
+
+# Graceful imports for optional provider dependencies
+# These will only be available if the corresponding SDK is installed
+
+try:
+    from isotopo_core.providers.openai import OpenAIProvider  # noqa: F401
+
+    __all__.append("OpenAIProvider")
+except ImportError:
+    # openai SDK not installed
+    pass
+
+try:
+    from isotopo_core.providers.anthropic import AnthropicProvider, ThinkingConfig  # noqa: F401
+
+    __all__.extend(["AnthropicProvider", "ThinkingConfig"])
+except ImportError:
+    # anthropic SDK not installed
+    pass
