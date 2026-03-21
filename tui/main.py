@@ -80,7 +80,7 @@ DEFAULT_MODEL = "gpt-4o-mini"
 
 
 def _make_tools() -> list[Tool]:
-    """Create the built-in tools: read_file, write_file, edit_file, terminal."""
+    """Create the built-in tools: read_file, write_file, edit_file, terminal, get_current_time."""
 
     async def _read_file(
         tool_call_id: str,
@@ -202,6 +202,17 @@ def _make_tools() -> list[Tool]:
         except Exception as e:
             return ToolResult.error(f"Error running command: {e}")
 
+    async def _get_current_time(
+        tool_call_id: str,
+        params: dict[str, Any],
+        signal: asyncio.Event | None = None,
+        on_update: Any = None,
+    ) -> ToolResult:
+        import datetime
+
+        now = datetime.datetime.now(tz=datetime.UTC).isoformat()
+        return ToolResult.text(f"Current UTC time: {now}")
+
     return [
         Tool(
             name="read_file",
@@ -278,6 +289,12 @@ def _make_tools() -> list[Tool]:
                 "required": ["command"],
             },
             execute=_terminal,
+        ),
+        Tool(
+            name="get_current_time",
+            description="Get the current date and time in UTC",
+            parameters={"type": "object", "properties": {}},
+            execute=_get_current_time,
         ),
     ]
 
