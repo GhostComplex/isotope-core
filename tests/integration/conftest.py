@@ -21,7 +21,21 @@ DEFAULT_MODEL = "gpt-4o-mini"
 def _proxy_is_reachable() -> bool:
     """Check if the proxy is reachable."""
     try:
+        # Try /models first; some proxies return 502 for this endpoint
+        # so fall back to a simple connection check on the base URL
         resp = httpx.get(f"{PROXY_BASE_URL}/models", timeout=5)
+        if resp.status_code == 200:
+            return True
+        # If /models doesn't work, try a minimal chat completion
+        resp = httpx.post(
+            f"{PROXY_BASE_URL}/chat/completions",
+            json={
+                "model": DEFAULT_MODEL,
+                "messages": [{"role": "user", "content": "hi"}],
+                "max_tokens": 1,
+            },
+            timeout=10,
+        )
         return resp.status_code == 200
     except (httpx.ConnectError, httpx.TimeoutException, OSError):
         return False
