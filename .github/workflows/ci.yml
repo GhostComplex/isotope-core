@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install -e ".[dev,tiktoken]"
+        run: pip install -e ".[all,dev]"
       - name: Ruff check
         run: ruff check src/ tests/ examples/
       - name: Mypy
