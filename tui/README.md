@@ -4,9 +4,7 @@ A standalone interactive TUI for testing isotopo-core against a local OpenAI-com
 
 ## Prerequisites
 
-- isotopo-core installed in editable mode: `pip install -e ".[openai,dev]"`
-- `httpx` installed: `pip install httpx`
-- (Optional) `rich` for colored output: `pip install rich`
+- [uv](https://docs.astral.sh/uv/) installed
 - A proxy running at `http://localhost:4141/v1`
 
 ## Running
@@ -14,20 +12,21 @@ A standalone interactive TUI for testing isotopo-core against a local OpenAI-com
 From the repository root:
 
 ```bash
-python tui/main.py
+uv run python tui/main.py
 ```
 
-Or:
-
-```bash
-python -m tui.main
-```
+Tools are disabled by default. Type `/tools` to enable:
+- `read_file` — read file contents
+- `write_file` — create/overwrite files
+- `edit_file` — find-and-replace exact text
+- `terminal` — run shell commands
+- `get_current_time` — current UTC time
 
 ## Commands
 
 | Command            | Description                              |
 | ------------------ | ---------------------------------------- |
-| `/tools`           | Toggle example tools (time, calculator)  |
+| `/tools`           | Toggle tools on/off                      |
 | `/model <name>`    | Switch model mid-session                 |
 | `/system <prompt>` | Change system prompt                     |
 | `/clear`           | Clear conversation history               |
@@ -42,14 +41,12 @@ isotopo-core TUI v0.1
 Proxy: http://localhost:4141/v1
 Model: gpt-4o-mini
 
-System prompt (Enter to skip): You are a helpful assistant.
-
 > Hello!
 Hi there! How can I help you today?
 [tokens: in=24, out=12]
 
 > /tools
-Tools enabled: get_current_time, calculator
+Tools enabled: read_file, write_file, edit_file, terminal, get_current_time
 
 > What time is it?
   [calling get_current_time]
