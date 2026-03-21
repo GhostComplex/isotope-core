@@ -6,19 +6,19 @@ Core primitives for building AI agent loops in Python. Provides a turn-based exe
 
 ```bash
 # Core (no provider SDKs)
-pip install isotopo-core
+uv add isotopo-core
 
 # With OpenAI provider
-pip install isotopo-core[openai]
+uv add isotopo-core[openai]
 
 # With Anthropic provider
-pip install isotopo-core[anthropic]
+uv add isotopo-core[anthropic]
 
 # With tiktoken for accurate token counting
-pip install isotopo-core[tiktoken]
+uv add isotopo-core[tiktoken]
 
 # Everything
-pip install isotopo-core[openai,anthropic,tiktoken]
+uv add isotopo-core[openai,anthropic,tiktoken]
 ```
 
 ## Quick Start
@@ -308,19 +308,19 @@ All examples use mock providers and require no API keys:
 ```bash
 git clone https://github.com/GhostComplex/isotopo-core.git
 cd isotopo-core
-pip install -e ".[dev,tiktoken]"
+uv sync --all-extras
 
 # Run tests
-pytest
+uv run pytest
 
 # Run tests with coverage
-pytest --cov=isotopo_core --cov-fail-under=90
+uv run pytest --cov=isotopo_core --cov-fail-under=90
 
 # Lint
-ruff check src/ tests/ examples/
+uv run ruff check src/ tests/ examples/
 
 # Type check
-mypy src/
+uv run mypy src/
 ```
 
 ## License

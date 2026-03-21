@@ -107,7 +107,7 @@ Bye!
 
 - Integration tests must be skippable (don't break CI without proxy)
 - TUI must NOT be part of the `isotopo-core` package (not in `src/`)
-- TUI must work with just `pip install -e .` from the repo (no extra install)
+- TUI must work with just `uv sync` from the repo (no extra install)
 - Keep it simple — stdin/stdout, no curses/textual
 - ruff + mypy clean (TUI files can be excluded from mypy if needed)
 
