@@ -18,8 +18,12 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import os
 import sys
 from typing import Any
+
+# Bypass system HTTP proxies (e.g. Clash) for localhost
+os.environ.setdefault("NO_PROXY", "localhost,127.0.0.1,::1")
 
 # ---------------------------------------------------------------------------
 # Optional rich support

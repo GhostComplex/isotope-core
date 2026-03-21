@@ -6,6 +6,7 @@ Provides proxy availability checks and shared fixtures.
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import Any
 
 import httpx
@@ -17,26 +18,32 @@ from isotopo_core.tools import Tool, ToolResult
 PROXY_BASE_URL = "http://localhost:4141/v1"
 DEFAULT_MODEL = "gpt-4o-mini"
 
+# Bypass system HTTP proxies (e.g. Clash on port 7890) for localhost
+os.environ.setdefault("NO_PROXY", "localhost,127.0.0.1,::1")
+
 
 def _proxy_is_reachable() -> bool:
-    """Check if the proxy is reachable."""
+    """Check if the proxy is reachable.
+
+    Uses trust_env=False to bypass system HTTP proxies (e.g. Clash on
+    port 7890) that would otherwise intercept localhost requests.
+    """
     try:
-        # Try /models first; some proxies return 502 for this endpoint
-        # so fall back to a simple connection check on the base URL
-        resp = httpx.get(f"{PROXY_BASE_URL}/models", timeout=5)
-        if resp.status_code == 200:
-            return True
-        # If /models doesn't work, try a minimal chat completion
-        resp = httpx.post(
-            f"{PROXY_BASE_URL}/chat/completions",
-            json={
-                "model": DEFAULT_MODEL,
-                "messages": [{"role": "user", "content": "hi"}],
-                "max_tokens": 1,
-            },
-            timeout=10,
-        )
-        return resp.status_code == 200
+        with httpx.Client(trust_env=False, timeout=5) as client:
+            resp = client.get(f"{PROXY_BASE_URL}/models")
+            if resp.status_code == 200:
+                return True
+            # Fall back to a minimal chat completion
+            resp = client.post(
+                f"{PROXY_BASE_URL}/chat/completions",
+                json={
+                    "model": DEFAULT_MODEL,
+                    "messages": [{"role": "user", "content": "hi"}],
+                    "max_tokens": 1,
+                },
+                timeout=10,
+            )
+            return resp.status_code == 200
     except (httpx.ConnectError, httpx.TimeoutException, OSError):
         return False
 
