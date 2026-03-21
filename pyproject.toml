@@ -60,6 +60,9 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: integration tests requiring live proxy at localhost:4141",
+]
 
 [tool.mypy]
 python_version = "3.11"
