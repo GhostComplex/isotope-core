@@ -5,7 +5,7 @@ Usage:
     python -m tui.main              # from repo root
 
 Commands:
-    /tools          Toggle example tools (get_current_time, calculator)
+    /tools          Toggle tools (read_file, write_file, edit_file, terminal)
     /model <name>   Switch model
     /system <text>  Change system prompt
     /clear          Clear conversation history
@@ -17,7 +17,6 @@ Commands:
 from __future__ import annotations
 
 import asyncio
-import datetime
 import os
 import sys
 from typing import Any
@@ -81,53 +80,204 @@ DEFAULT_MODEL = "gpt-4o-mini"
 
 
 def _make_tools() -> list[Tool]:
-    """Create the built-in example tools."""
+    """Create the built-in tools: read_file, write_file, edit_file, terminal."""
 
-    async def _get_time(
+    async def _read_file(
         tool_call_id: str,
         params: dict[str, Any],
         signal: asyncio.Event | None = None,
         on_update: Any = None,
     ) -> ToolResult:
-        now = datetime.datetime.now(tz=datetime.UTC).isoformat()
-        return ToolResult.text(f"Current UTC time: {now}")
+        import os
 
-    async def _calculator(
-        tool_call_id: str,
-        params: dict[str, Any],
-        signal: asyncio.Event | None = None,
-        on_update: Any = None,
-    ) -> ToolResult:
-        expr = params.get("expression", "")
-        allowed = set("0123456789+-*/.() ")
-        if not all(c in allowed for c in str(expr)):
-            return ToolResult.error(f"Invalid expression: {expr}")
+        path = params.get("path", "")
+        if not path:
+            return ToolResult.error("Missing required parameter: path")
+        path = os.path.expanduser(path)
         try:
-            return ToolResult.text(str(eval(str(expr))))  # noqa: S307
+            with open(path, encoding="utf-8", errors="replace") as f:
+                content = f.read()
+            # Truncate very large files
+            if len(content) > 100_000:
+                content = content[:100_000] + f"\n\n... [truncated, {len(content)} chars total]"
+            return ToolResult.text(content)
+        except FileNotFoundError:
+            return ToolResult.error(f"File not found: {path}")
+        except PermissionError:
+            return ToolResult.error(f"Permission denied: {path}")
         except Exception as e:
-            return ToolResult.error(str(e))
+            return ToolResult.error(f"Error reading file: {e}")
+
+    async def _write_file(
+        tool_call_id: str,
+        params: dict[str, Any],
+        signal: asyncio.Event | None = None,
+        on_update: Any = None,
+    ) -> ToolResult:
+        import os
+
+        path = params.get("path", "")
+        content = params.get("content", "")
+        if not path:
+            return ToolResult.error("Missing required parameter: path")
+        path = os.path.expanduser(path)
+        try:
+            os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            return ToolResult.text(f"Written {len(content)} chars to {path}")
+        except PermissionError:
+            return ToolResult.error(f"Permission denied: {path}")
+        except Exception as e:
+            return ToolResult.error(f"Error writing file: {e}")
+
+    async def _edit_file(
+        tool_call_id: str,
+        params: dict[str, Any],
+        signal: asyncio.Event | None = None,
+        on_update: Any = None,
+    ) -> ToolResult:
+        import os
+
+        path = params.get("path", "")
+        old_text = params.get("old_text", "")
+        new_text = params.get("new_text", "")
+        if not path:
+            return ToolResult.error("Missing required parameter: path")
+        if not old_text:
+            return ToolResult.error("Missing required parameter: old_text")
+        path = os.path.expanduser(path)
+        try:
+            with open(path, encoding="utf-8") as f:
+                content = f.read()
+            count = content.count(old_text)
+            if count == 0:
+                return ToolResult.error(
+                    f"old_text not found in {path}. Make sure it matches exactly."
+                )
+            if count > 1:
+                return ToolResult.error(
+                    f"old_text found {count} times in {path}. Must match exactly once."
+                )
+            content = content.replace(old_text, new_text, 1)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            return ToolResult.text(f"Edited {path}: replaced 1 occurrence")
+        except FileNotFoundError:
+            return ToolResult.error(f"File not found: {path}")
+        except PermissionError:
+            return ToolResult.error(f"Permission denied: {path}")
+        except Exception as e:
+            return ToolResult.error(f"Error editing file: {e}")
+
+    async def _terminal(
+        tool_call_id: str,
+        params: dict[str, Any],
+        signal: asyncio.Event | None = None,
+        on_update: Any = None,
+    ) -> ToolResult:
+        command = params.get("command", "")
+        if not command:
+            return ToolResult.error("Missing required parameter: command")
+        timeout = min(params.get("timeout", 30), 120)  # cap at 120s
+        try:
+            proc = await asyncio.create_subprocess_shell(
+                command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            try:
+                stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+            except asyncio.TimeoutError:
+                proc.kill()
+                return ToolResult.error(f"Command timed out after {timeout}s")
+            output = stdout.decode("utf-8", errors="replace") if stdout else ""
+            if len(output) > 50_000:
+                output = output[:50_000] + f"\n\n... [truncated, {len(output)} chars total]"
+            exit_code = proc.returncode
+            result = f"Exit code: {exit_code}\n{output}" if output else f"Exit code: {exit_code}"
+            if exit_code != 0:
+                return ToolResult.error(result)
+            return ToolResult.text(result)
+        except Exception as e:
+            return ToolResult.error(f"Error running command: {e}")
 
     return [
         Tool(
-            name="get_current_time",
-            description="Get the current date and time in UTC",
-            parameters={"type": "object", "properties": {}},
-            execute=_get_time,
-        ),
-        Tool(
-            name="calculator",
-            description="Evaluate a mathematical expression",
+            name="read_file",
+            description="Read the contents of a file at the given path",
             parameters={
                 "type": "object",
                 "properties": {
-                    "expression": {
+                    "path": {
                         "type": "string",
-                        "description": "Math expression, e.g. '2 + 2'",
-                    }
+                        "description": "Absolute or relative file path to read",
+                    },
                 },
-                "required": ["expression"],
+                "required": ["path"],
             },
-            execute=_calculator,
+            execute=_read_file,
+        ),
+        Tool(
+            name="write_file",
+            description="Create or overwrite a file with the given content. Creates parent directories if needed.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute or relative file path to write",
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content to write to the file",
+                    },
+                },
+                "required": ["path", "content"],
+            },
+            execute=_write_file,
+        ),
+        Tool(
+            name="edit_file",
+            description="Edit a file by replacing an exact text match. old_text must match exactly once in the file.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute or relative file path to edit",
+                    },
+                    "old_text": {
+                        "type": "string",
+                        "description": "Exact text to find (must match exactly once)",
+                    },
+                    "new_text": {
+                        "type": "string",
+                        "description": "Text to replace old_text with",
+                    },
+                },
+                "required": ["path", "old_text", "new_text"],
+            },
+            execute=_edit_file,
+        ),
+        Tool(
+            name="terminal",
+            description="Execute a shell command and return stdout/stderr. Timeout defaults to 30s, max 120s.",
+            parameters={
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "Shell command to execute",
+                    },
+                    "timeout": {
+                        "type": "number",
+                        "description": "Timeout in seconds (default 30, max 120)",
+                    },
+                },
+                "required": ["command"],
+            },
+            execute=_terminal,
         ),
     ]
 
