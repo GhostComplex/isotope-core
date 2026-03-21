@@ -8,17 +8,11 @@ Core primitives for building AI agent loops in Python. Provides a turn-based exe
 # Core (no provider SDKs)
 uv add isotopo-core
 
-# With OpenAI provider
-uv add isotopo-core[openai]
-
-# With Anthropic provider
-uv add isotopo-core[anthropic]
-
-# With tiktoken for accurate token counting
-uv add isotopo-core[tiktoken]
-
-# Everything
-uv add isotopo-core[openai,anthropic,tiktoken]
+# With extras
+uv add "isotopo-core[openai]"          # OpenAI provider
+uv add "isotopo-core[anthropic]"       # Anthropic provider
+uv add "isotopo-core[tiktoken]"        # Accurate token counting
+uv add "isotopo-core[openai,anthropic,tiktoken]"  # Everything
 ```
 
 ## Quick Start
