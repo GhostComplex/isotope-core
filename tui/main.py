@@ -4,19 +4,26 @@ Usage:
     python tui/main.py              # from repo root
     python -m tui.main              # from repo root
 
-Commands:
+Commands (between messages):
     /tools          Toggle tools (read_file, write_file, edit_file, terminal)
     /model <name>   Switch model
     /system <text>  Change system prompt
     /clear          Clear conversation history
     /history        Show message count & token usage
     /debug          Toggle debug mode (shows event types)
+    /help           Show available commands
     /quit           Exit
+
+Commands (during streaming):
+    /steer <msg>    Inject a steering message mid-stream
+    /follow <msg>   Queue a follow-up message for after completion
+    /abort          Abort the current response
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import sys
 from typing import Any
@@ -188,7 +195,7 @@ def _make_tools() -> list[Tool]:
             )
             try:
                 stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 proc.kill()
                 return ToolResult.error(f"Command timed out after {timeout}s")
             output = stdout.decode("utf-8", errors="replace") if stdout else ""
@@ -231,7 +238,10 @@ def _make_tools() -> list[Tool]:
         ),
         Tool(
             name="write_file",
-            description="Create or overwrite a file with the given content. Creates parent directories if needed.",
+            description=(
+                "Create or overwrite a file with the given content."
+                " Creates parent directories if needed."
+            ),
             parameters={
                 "type": "object",
                 "properties": {
@@ -250,7 +260,10 @@ def _make_tools() -> list[Tool]:
         ),
         Tool(
             name="edit_file",
-            description="Edit a file by replacing an exact text match. old_text must match exactly once in the file.",
+            description=(
+                "Edit a file by replacing an exact text match."
+                " old_text must match exactly once in the file."
+            ),
             parameters={
                 "type": "object",
                 "properties": {
@@ -273,7 +286,10 @@ def _make_tools() -> list[Tool]:
         ),
         Tool(
             name="terminal",
-            description="Execute a shell command and return stdout/stderr. Timeout defaults to 30s, max 120s.",
+            description=(
+                "Execute a shell command and return stdout/stderr."
+                " Timeout defaults to 30s, max 120s."
+            ),
             parameters={
                 "type": "object",
                 "properties": {
@@ -341,6 +357,7 @@ class TUI:
         self.agent: Agent | None = None
         self.total_input_tokens = 0
         self.total_output_tokens = 0
+        self._is_streaming = False
 
     def _create_agent(self) -> Agent:
         provider = ProxyProvider(
@@ -465,15 +482,84 @@ class TUI:
             _print(f"Debug mode: {'on' if self.debug else 'off'}", style="info")
             return False
 
+        if cmd == "/help":
+            _print("Commands (between messages):", style="info")
+            _print("  /tools          Toggle tools", style="dim")
+            _print("  /model <name>   Switch model", style="dim")
+            _print("  /system <text>  Change system prompt", style="dim")
+            _print("  /clear          Clear conversation", style="dim")
+            _print("  /history        Show usage stats", style="dim")
+            _print("  /debug          Toggle debug mode", style="dim")
+            _print("  /quit           Exit", style="dim")
+            _print("\nCommands (during streaming):", style="info")
+            _print("  /steer <msg>    Inject steering mid-stream", style="dim")
+            _print("  /follow <msg>   Queue follow-up for after completion", style="dim")
+            _print("  /abort          Abort current response", style="dim")
+            return False
+
         _print(f"Unknown command: {cmd}", style="warn")
-        _print("Commands: /tools /model /system /clear /history /debug /quit", style="dim")
+        _print(
+            "Commands: /tools /model /system /clear /history /debug /help /quit",
+            style="dim",
+        )
         return False
 
+    async def _read_input_during_stream(self) -> None:
+        """Read stdin commands concurrently during streaming.
+
+        Uses run_in_executor with sys.stdin.readline (Option A from spec).
+        Only accepts /steer, /follow, /abort during streaming.
+        """
+        loop = asyncio.get_event_loop()
+        while self._is_streaming:
+            try:
+                line = await loop.run_in_executor(None, sys.stdin.readline)
+            except (EOFError, OSError):
+                break
+
+            if not self._is_streaming:
+                break
+
+            line = line.strip()
+            if not line:
+                continue
+
+            if not line.startswith("/"):
+                _print(
+                    "\n  [only /steer, /follow, /abort during streaming]",
+                    style="dim",
+                )
+                continue
+
+            parts = line.split(maxsplit=1)
+            cmd = parts[0].lower()
+            arg = parts[1] if len(parts) > 1 else ""
+
+            if cmd == "/steer" and arg and self.agent:
+                self.agent.steer(arg)
+                _print(f"\n  [steering: {arg}]", style="tool")
+            elif cmd == "/follow" and arg and self.agent:
+                self.agent.follow_up(arg)
+                _print(f"\n  [follow-up queued: {arg}]", style="tool")
+            elif cmd == "/abort" and self.agent:
+                self.agent.abort()
+                _print("\n  [aborting...]", style="warn")
+            elif cmd in ("/steer", "/follow") and not arg:
+                _print(f"\n  [usage: {cmd} <message>]", style="warn")
+            else:
+                _print(
+                    "\n  [only /steer, /follow, /abort during streaming]",
+                    style="dim",
+                )
+
     async def _send_message(self, text: str) -> None:
-        """Send a user message and stream the response."""
+        """Send a user message and stream the response with concurrent input."""
         if self.agent is None:
             self._rebuild_agent()
         assert self.agent is not None
+
+        self._is_streaming = True
+        input_task = asyncio.create_task(self._read_input_during_stream())
 
         try:
             async for event in self.agent.prompt(text):
@@ -500,12 +586,30 @@ class TUI:
                         self.total_input_tokens += msg.usage.input_tokens
                         self.total_output_tokens += msg.usage.output_tokens
 
+                elif event.type == "steer":
+                    steer_msg = getattr(event, "message", None)
+                    turn = getattr(event, "turn_number", "?")
+                    if steer_msg and self.debug:
+                        _print(f"\n  [steer applied, turn {turn}]", style="tool")
+
+                elif event.type == "follow_up":
+                    follow_msg = getattr(event, "message", None)
+                    turn = getattr(event, "turn_number", "?")
+                    if follow_msg and self.debug:
+                        _print(f"\n  [follow-up applied, turn {turn}]", style="tool")
+
                 elif event.type == "agent_end":
-                    pass  # handled below
+                    reason = getattr(event, "reason", "completed")
+                    if reason != "completed" and self.debug:
+                        _print(f"\n  [ended: {reason}]", style="dim")
 
         except Exception as exc:
             _print(f"\nError: {exc}", style="err")
-            return
+        finally:
+            self._is_streaming = False
+            input_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await input_task
 
         # Print newline after streamed text + token usage
         print()
