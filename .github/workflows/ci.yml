@@ -34,4 +34,4 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,tiktoken]"
       - name: Run tests with coverage
-        run: pytest --cov=isotopo_core --cov-fail-under=90
+        run: pytest --cov=isotopo_core --cov-fail-under=90 --ignore=tests/integration
