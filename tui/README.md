@@ -24,6 +24,8 @@ Tools are disabled by default. Type `/tools` to enable:
 
 ## Commands
 
+### Between messages
+
 | Command            | Description                              |
 | ------------------ | ---------------------------------------- |
 | `/tools`           | Toggle tools on/off                      |
@@ -32,7 +34,20 @@ Tools are disabled by default. Type `/tools` to enable:
 | `/clear`           | Clear conversation history               |
 | `/history`         | Show message count & total token usage   |
 | `/debug`           | Toggle debug mode (shows event types)    |
+| `/help`            | Show all available commands              |
 | `/quit`            | Exit (also Ctrl+C)                       |
+
+### During streaming
+
+These commands can be typed while the model is generating a response:
+
+| Command            | Description                                          |
+| ------------------ | ---------------------------------------------------- |
+| `/steer <msg>`     | Inject a steering message mid-stream                 |
+| `/follow <msg>`    | Queue a follow-up message for after completion       |
+| `/abort`           | Abort the current response                           |
+
+**How it works:** During streaming, a background input reader accepts commands. When you type `/steer <msg>`, the current response completes its turn, then your steering message is injected as a new user message and the model starts a new turn. `/follow` queues a message that triggers after the model would normally stop. `/abort` stops the current response immediately.
 
 ## Example Session
 
@@ -52,6 +67,19 @@ Tools enabled: read_file, write_file, edit_file, terminal, get_current_time
   [calling get_current_time]
 The current time is 2026-03-21T09:15:00+00:00.
 [tokens: in=89, out=32]
+
+> Write me a long essay about AI
+The history of artificial intelligence...
+/steer Actually, make it about robotics instead
+  [steering: Actually, make it about robotics instead]
+Let me pivot to robotics...
+[tokens: in=156, out=89]
+
+> Tell me more
+Robotics has evolved significantly...
+/abort
+  [aborting...]
+[tokens: in=200, out=45]
 
 > /quit
 Bye!

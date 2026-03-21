@@ -298,11 +298,13 @@ async def test_agent_tool_calling_e2e(
     # Should have completed
     assert event_types[-1] == "agent_end"
 
-    # Final assistant message should reference the result (56088)
+    # Final assistant message should reference the result (56088 or 56,088)
     assistant_msgs = [m for m in agent.messages if isinstance(m, AssistantMessage)]
     last_text = "".join(
         block.text
         for block in assistant_msgs[-1].content
         if isinstance(block, TextContent)
     )
-    assert "56088" in last_text, f"Expected 56088 in response. Got: {last_text}"
+    # Models may format with commas (56,088) or without (56088)
+    normalized = last_text.replace(",", "")
+    assert "56088" in normalized, f"Expected 56088 in response. Got: {last_text}"
