@@ -146,7 +146,7 @@ Export `OpenAIProvider` and `AnthropicProvider` from the top-level package.
 
 ## Technical Constraints
 
-- Provider SDKs are optional dependencies (install via `pip install isotopo-core[openai]` etc.)
+- Provider SDKs are optional dependencies (install via `uv add "isotopo-core[openai]"` etc.)
 - Use lazy imports to avoid ImportError when SDKs aren't installed
 - All streaming must be proper async generators (not buffered)
 - Never throw from `stream()` — all errors go through `StreamErrorEvent`

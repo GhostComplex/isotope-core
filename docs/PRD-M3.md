@@ -155,7 +155,7 @@ def create_summarization_transform(
 
 ## Technical Constraints
 
-- `tiktoken` is an optional dependency (install via `pip install isotopo-core[tiktoken]`)
+- `tiktoken` is an optional dependency (install via `uv add "isotopo-core[tiktoken]"`)
 - Fallback token counting must work without tiktoken
 - Pruning strategies must never drop pinned messages
 - Summarization strategy must use the existing Provider protocol

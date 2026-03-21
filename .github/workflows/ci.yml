@@ -11,15 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
       - name: Install dependencies
-        run: pip install -e ".[dev,tiktoken]"
+        run: uv sync --all-extras
       - name: Ruff check
-        run: ruff check src/ tests/ examples/
+        run: uv run ruff check src/ tests/ examples/
       - name: Mypy
-        run: mypy src/
+        run: uv run mypy src/
 
   test:
     runs-on: ubuntu-latest
@@ -28,10 +26,6 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: pip install -e ".[dev,tiktoken]"
+      - uses: astral-sh/setup-uv@v6
       - name: Run tests with coverage
-        run: pytest --cov=isotopo_core --cov-fail-under=90
+        run: uv run --python ${{ matrix.python-version }} --all-extras pytest --cov=isotopo_core --cov-fail-under=90 --ignore=tests/integration

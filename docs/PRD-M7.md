@@ -41,7 +41,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - run: pip install -e ".[dev,tiktoken]"
+      - run: uv sync --all-extras
       - run: ruff check .
       - run: mypy src/
       - run: pytest --cov=isotopo_core --cov-report=term-missing --cov-fail-under=90
