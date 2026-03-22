@@ -15,9 +15,9 @@ Commands (between messages):
     /quit           Exit
 
 Commands (during streaming):
-    /steer <msg>    Inject a steering message mid-stream
-    /follow <msg>   Queue a follow-up message for after completion
-    /abort          Abort the current response
+    Any text       Steering — cancels stream and queues your message (Claude Code style)
+    /follow <msg>  Queue a follow-up for after completion
+    /abort         Abort the current response
 """
 
 from __future__ import annotations
@@ -358,6 +358,16 @@ class TUI:
         self.total_input_tokens = 0
         self.total_output_tokens = 0
         self._is_streaming = False
+        self._stream_task: asyncio.Task[None] | None = None
+
+    def _cancel_stream(self) -> None:
+        """Cancel the active stream task immediately (Claude Code style).
+
+        Sends asyncio.CancelledError into the provider's stream generator,
+        bypassing signal-based abort which has inherent polling latency.
+        """
+        if self._stream_task is not None and not self._stream_task.done():
+            self._stream_task.cancel()
 
     def _create_agent(self) -> Agent:
         provider = ProxyProvider(
@@ -492,7 +502,7 @@ class TUI:
             _print("  /debug          Toggle debug mode", style="dim")
             _print("  /quit           Exit", style="dim")
             _print("\nCommands (during streaming):", style="info")
-            _print("  /steer <msg>    Inject steering mid-stream", style="dim")
+            _print("  Any text       Steering — cancels stream, queues your message", style="dim")
             _print("  /follow <msg>   Queue follow-up for after completion", style="dim")
             _print("  /abort          Abort current response", style="dim")
             return False
@@ -505,10 +515,11 @@ class TUI:
         return False
 
     async def _read_input_during_stream(self) -> None:
-        """Read stdin commands concurrently during streaming.
+        """Read stdin concurrently during streaming.
 
-        Uses run_in_executor with sys.stdin.readline (Option A from spec).
-        Only accepts /steer, /follow, /abort during streaming.
+        Any text input (no '/' prefix) during streaming is treated as steering —
+        cancels the current stream and queues the message for the next turn.
+        Only /follow and /abort are explicit commands.
         """
         loop = asyncio.get_event_loop()
         while self._is_streaming:
@@ -524,92 +535,104 @@ class TUI:
             if not line:
                 continue
 
-            if not line.startswith("/"):
-                _print(
-                    "\n  [only /steer, /follow, /abort during streaming]",
-                    style="dim",
-                )
+            # Explicit commands during streaming
+            if line.startswith("/"):
+                parts = line.split(maxsplit=1)
+                cmd = parts[0].lower()
+                arg = parts[1] if len(parts) > 1 else ""
+
+                if cmd == "/follow" and arg and self.agent:
+                    self.agent.follow_up(arg)
+                    _print(f"\n  [follow-up queued: {arg}]", style="tool")
+                elif cmd == "/abort" and self.agent:
+                    self.agent.abort()
+                    _print("\n  [aborting...]", style="warn")
+                elif cmd in ("/follow", "/steer") and not arg:
+                    _print(f"\n  [usage: {cmd} <message>]", style="warn")
+                # Unknown commands — silently ignore during streaming
                 continue
 
-            parts = line.split(maxsplit=1)
-            cmd = parts[0].lower()
-            arg = parts[1] if len(parts) > 1 else ""
-
-            if cmd == "/steer" and arg and self.agent:
-                self.agent.steer(arg)
-                _print(f"\n  [steering: {arg}]", style="tool")
-            elif cmd == "/follow" and arg and self.agent:
-                self.agent.follow_up(arg)
-                _print(f"\n  [follow-up queued: {arg}]", style="tool")
-            elif cmd == "/abort" and self.agent:
-                self.agent.abort()
-                _print("\n  [aborting...]", style="warn")
-            elif cmd in ("/steer", "/follow") and not arg:
-                _print(f"\n  [usage: {cmd} <message>]", style="warn")
-            else:
-                _print(
-                    "\n  [only /steer, /follow, /abort during streaming]",
-                    style="dim",
-                )
+            # Any other text = steering (Claude Code style, no /steer prefix needed)
+            if self.agent:
+                self.agent.steer(line)
+                self._cancel_stream()  # kill HTTP connection immediately
+                _print(f"\n  [→ {line}]", style="tool")
 
     async def _send_message(self, text: str) -> None:
-        """Send a user message and stream the response with concurrent input."""
+        """Send a user message and stream the response with concurrent input.
+
+        Any text typed during streaming is treated as steering (no /steer prefix).
+        Stream is cancelled immediately via Task.cancel() — no polling latency.
+        """
         if self.agent is None:
             self._rebuild_agent()
         assert self.agent is not None
 
         self._is_streaming = True
+
+        async def _consume_stream() -> None:
+            """Consume the agent prompt stream and print events."""
+            try:
+                async for event in self.agent.prompt(text):
+                    if self.debug:
+                        _print(f"  [{event.type}]", style="dim")
+
+                    if event.type == "message_update":
+                        delta = getattr(event, "delta", None)
+                        if delta:
+                            _print_inline(delta, style="model")
+
+                    elif event.type == "tool_start":
+                        tool_name = getattr(event, "tool_name", "?")
+                        _print(f"\n  [calling {tool_name}]", style="tool")
+
+                    elif event.type == "tool_end":
+                        is_error = getattr(event, "is_error", False)
+                        if is_error:
+                            _print("  [tool error]", style="err")
+
+                    elif event.type == "turn_end":
+                        msg = getattr(event, "message", None)
+                        if isinstance(msg, AssistantMessage):
+                            self.total_input_tokens += msg.usage.input_tokens
+                            self.total_output_tokens += msg.usage.output_tokens
+
+                    elif event.type == "steer":
+                        steer_msg = getattr(event, "message", None)
+                        turn = getattr(event, "turn_number", "?")
+                        if steer_msg and self.debug:
+                            _print(f"\n  [steer applied, turn {turn}]", style="tool")
+
+                    elif event.type == "follow_up":
+                        follow_msg = getattr(event, "message", None)
+                        turn = getattr(event, "turn_number", "?")
+                        if follow_msg and self.debug:
+                            _print(f"\n  [follow-up applied, turn {turn}]", style="tool")
+
+                    elif event.type == "agent_end":
+                        reason = getattr(event, "reason", "completed")
+                        if reason != "completed" and self.debug:
+                            _print(f"\n  [ended: {reason}]", style="dim")
+
+            except asyncio.CancelledError:
+                # Raised when _cancel_stream() cancels _stream_task
+                pass
+            except Exception as exc:
+                _print(f"\nError: {exc}", style="err")
+
+        # Run stream and concurrent input reader together.
+        # When _cancel_stream() cancels _stream_task, gather cancels input_task too.
+        self._stream_task = asyncio.create_task(_consume_stream())
         input_task = asyncio.create_task(self._read_input_during_stream())
 
         try:
-            async for event in self.agent.prompt(text):
-                if self.debug:
-                    _print(f"  [{event.type}]", style="dim")
-
-                if event.type == "message_update":
-                    delta = getattr(event, "delta", None)
-                    if delta:
-                        _print_inline(delta, style="model")
-
-                elif event.type == "tool_start":
-                    tool_name = getattr(event, "tool_name", "?")
-                    _print(f"\n  [calling {tool_name}]", style="tool")
-
-                elif event.type == "tool_end":
-                    is_error = getattr(event, "is_error", False)
-                    if is_error:
-                        _print("  [tool error]", style="err")
-
-                elif event.type == "turn_end":
-                    msg = getattr(event, "message", None)
-                    if isinstance(msg, AssistantMessage):
-                        self.total_input_tokens += msg.usage.input_tokens
-                        self.total_output_tokens += msg.usage.output_tokens
-
-                elif event.type == "steer":
-                    steer_msg = getattr(event, "message", None)
-                    turn = getattr(event, "turn_number", "?")
-                    if steer_msg and self.debug:
-                        _print(f"\n  [steer applied, turn {turn}]", style="tool")
-
-                elif event.type == "follow_up":
-                    follow_msg = getattr(event, "message", None)
-                    turn = getattr(event, "turn_number", "?")
-                    if follow_msg and self.debug:
-                        _print(f"\n  [follow-up applied, turn {turn}]", style="tool")
-
-                elif event.type == "agent_end":
-                    reason = getattr(event, "reason", "completed")
-                    if reason != "completed" and self.debug:
-                        _print(f"\n  [ended: {reason}]", style="dim")
-
-        except Exception as exc:
-            _print(f"\nError: {exc}", style="err")
+            await asyncio.gather(self._stream_task, input_task)
+        except asyncio.CancelledError:
+            # Expected when cancelled during streaming (steering)
+            pass
         finally:
             self._is_streaming = False
-            input_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await input_task
+            self._stream_task = None
 
         # Print newline after streamed text + token usage
         print()
