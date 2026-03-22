@@ -26,7 +26,8 @@ import asyncio
 import contextlib
 import os
 import sys
-from typing import Any
+from collections.abc import AsyncGenerator
+from typing import Any, Callable
 
 # Bypass system HTTP proxies (e.g. Clash) for localhost
 os.environ.setdefault("NO_PROXY", "localhost,127.0.0.1,::1")
@@ -76,7 +77,7 @@ except ImportError:
 from isotopo_core import Agent  # noqa: E402
 from isotopo_core.providers.proxy import ProxyProvider  # noqa: E402
 from isotopo_core.tools import Tool, ToolResult  # noqa: E402
-from isotopo_core.types import AssistantMessage  # noqa: E402
+from isotopo_core.types import AgentEvent, AssistantMessage  # noqa: E402
 
 PROXY_BASE_URL = "http://localhost:4141/v1"
 DEFAULT_MODEL = "gpt-4o-mini"
@@ -359,6 +360,7 @@ class TUI:
         self.total_output_tokens = 0
         self._is_streaming = False
         self._stream_task: asyncio.Task[None] | None = None
+        self._steered = False  # set True when user steers during streaming
 
     def _cancel_stream(self) -> None:
         """Cancel the active stream task immediately (Claude Code style).
@@ -555,6 +557,7 @@ class TUI:
             # Any other text = steering (Claude Code style, no /steer prefix needed)
             if self.agent:
                 self.agent.steer(line)
+                self._steered = True  # signal _send_message to call continue_() next
                 self._cancel_stream()  # kill HTTP connection immediately
                 _print(f"\n  [→ {line}]", style="tool")
 
@@ -563,6 +566,7 @@ class TUI:
 
         Any text typed during streaming is treated as steering (no /steer prefix).
         Stream is cancelled immediately via Task.cancel() — no polling latency.
+        After steering, loops back to process the queued message via continue_().
         """
         if self.agent is None:
             self._rebuild_agent()
@@ -570,10 +574,14 @@ class TUI:
 
         self._is_streaming = True
 
-        async def _consume_stream() -> None:
-            """Consume the agent prompt stream and print events."""
+        async def _consume_stream(prompt_fn: Callable[[], AsyncGenerator[AgentEvent, None]]) -> None:
+            """Consume the agent prompt stream and print events.
+
+            Args:
+                prompt_fn: Factory for the event generator (prompt or continue_).
+            """
             try:
-                async for event in self.agent.prompt(text):
+                async for event in prompt_fn():
                     if self.debug:
                         _print(f"  [{event.type}]", style="dim")
 
@@ -620,19 +628,45 @@ class TUI:
             except Exception as exc:
                 _print(f"\nError: {exc}", style="err")
 
-        # Run stream and concurrent input reader together.
-        # When _cancel_stream() cancels _stream_task, gather cancels input_task too.
-        self._stream_task = asyncio.create_task(_consume_stream())
-        input_task = asyncio.create_task(self._read_input_during_stream())
+        # Keep processing turns until no more queued messages.
+        # First turn: prompt(). Subsequent turns: continue_() (for steer/follow).
+        is_first_turn = True
 
-        try:
-            await asyncio.gather(self._stream_task, input_task)
-        except asyncio.CancelledError:
-            # Expected when cancelled during streaming (steering)
-            pass
-        finally:
-            self._is_streaming = False
-            self._stream_task = None
+        while True:
+            self._is_streaming = True
+
+            if is_first_turn:
+                self._stream_task = asyncio.create_task(
+                    _consume_stream(lambda: self.agent.prompt(text))  # type: ignore[arg-type]
+                )
+            else:
+                self._stream_task = asyncio.create_task(
+                    _consume_stream(lambda: self.agent.continue_())  # type: ignore[arg-type]
+                )
+
+            input_task = asyncio.create_task(self._read_input_during_stream())
+
+            self._steered = False  # signal set by input reader on steer
+
+            try:
+                await asyncio.gather(self._stream_task, input_task)
+            except asyncio.CancelledError:
+                # Cancelled — either steering happened or external abort.
+                # _read_input_during_stream sets _steered if it was a steer.
+                pass
+            finally:
+                self._is_streaming = False
+                self._stream_task = None
+
+            # After cancellation, check if a steer was queued.
+            # If so, loop back and call continue_() to process it.
+            if getattr(self, "_steered", False):
+                self._steered = False
+                is_first_turn = False
+                continue
+
+            # Normal end (or follow-up queued) — we're done.
+            break
 
         # Print newline after streamed text + token usage
         print()
