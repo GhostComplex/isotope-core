@@ -33,7 +33,11 @@ dependencies = [
 openai = ["openai>=1.0"]
 anthropic = ["anthropic>=0.40"]
 tiktoken = ["tiktoken>=0.7"]
-all = ["isotopo-core[openai,anthropic,tiktoken]"]
+tui = [
+    "openai>=1.0",
+    "prompt-toolkit>=3.0",
+]
+all = ["isotopo-core[openai,anthropic,tiktoken,tui]"]
 
 [dependency-groups]
 dev = [

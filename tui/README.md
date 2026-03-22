@@ -24,6 +24,8 @@ Tools are disabled by default. Type `/tools` to enable:
 
 ## Commands
 
+### Between messages
+
 | Command            | Description                              |
 | ------------------ | ---------------------------------------- |
 | `/tools`           | Toggle tools on/off                      |
@@ -32,14 +34,27 @@ Tools are disabled by default. Type `/tools` to enable:
 | `/clear`           | Clear conversation history               |
 | `/history`         | Show message count & total token usage   |
 | `/debug`           | Toggle debug mode (shows event types)    |
+| `/help`            | Show all available commands              |
 | `/quit`            | Exit (also Ctrl+C)                       |
+
+### During streaming
+
+These commands can be typed while the model is generating a response:
+
+| Command            | Description                                          |
+| ------------------ | ---------------------------------------------------- |
+| Any text           | Cancel the current stream and use that text to steer |
+| `/follow <msg>`    | Queue a follow-up message for after completion       |
+| `/abort`           | Abort the current response                           |
+
+**How it works:** During streaming, a footer input accepts follow-ups, aborts, and free-text steering. Any non-slash text interrupts the current stream, preserves the partial assistant response in history, and starts a new turn with your text. `/follow` queues a message that triggers after the model would normally stop. `/abort` stops the current response immediately.
 
 ## Example Session
 
 ```
 isotopo-core TUI v0.1
 Proxy: http://localhost:4141/v1
-Model: gpt-4o-mini
+Model: claude-opus-4.6
 
 > Hello!
 Hi there! How can I help you today?
@@ -52,6 +67,19 @@ Tools enabled: read_file, write_file, edit_file, terminal, get_current_time
   [calling get_current_time]
 The current time is 2026-03-21T09:15:00+00:00.
 [tokens: in=89, out=32]
+
+> Write me a long essay about AI
+The history of artificial intelligence...
+Actually, make it about robotics instead
+  [→ Actually, make it about robotics instead]
+Let me pivot to robotics...
+[tokens: in=156, out=89]
+
+> Tell me more
+Robotics has evolved significantly...
+/abort
+  [aborting...]
+[tokens: in=200, out=45]
 
 > /quit
 Bye!
