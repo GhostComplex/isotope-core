@@ -328,7 +328,7 @@ wheels = [
 ]
 
 [[package]]
-name = "isotopo-core"
+name = "isotope-core"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
@@ -369,7 +369,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=0.40" },
-    { name = "isotopo-core", extras = ["openai", "anthropic", "tiktoken", "tui"], marker = "extra == 'all'" },
+    { name = "isotope-core", extras = ["openai", "anthropic", "tiktoken", "tui"], marker = "extra == 'all'" },
     { name = "openai", marker = "extra == 'openai'", specifier = ">=1.0" },
     { name = "openai", marker = "extra == 'tui'", specifier = ">=1.0" },
     { name = "prompt-toolkit", marker = "extra == 'tui'", specifier = ">=3.0" },
