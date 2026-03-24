@@ -1,6 +1,6 @@
-# isotopo-core TUI
+# isotope-core TUI
 
-A standalone interactive TUI for testing isotopo-core against a local OpenAI-compatible proxy.
+A standalone interactive TUI for testing isotope-core against a local OpenAI-compatible proxy.
 
 ## Prerequisites
 
@@ -52,7 +52,7 @@ These commands can be typed while the model is generating a response:
 ## Example Session
 
 ```
-isotopo-core TUI v0.1
+isotope-core TUI v0.1
 Proxy: http://localhost:4141/v1
 Model: claude-opus-4.6
 

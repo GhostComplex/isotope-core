@@ -14,21 +14,21 @@ class TestOptionalProviderImports:
         """When openai is not installed, OpenAIProvider should not be in providers."""
         # Temporarily remove modules that depend on openai
         modules_to_hide = {
-            k: v for k, v in sys.modules.items() if "openai" in k or "isotopo_core.providers" in k
+            k: v for k, v in sys.modules.items() if "openai" in k or "isotope_core.providers" in k
         }
         with patch.dict(sys.modules, {**{k: None for k in modules_to_hide}}):
             # Remove cached modules so reimport runs the import guards
             for key in list(sys.modules.keys()):
-                if key.startswith("isotopo_core.providers"):
+                if key.startswith("isotope_core.providers"):
                     sys.modules.pop(key, None)
 
             # Simulate openai not installed
             sys.modules["openai"] = None  # type: ignore[assignment]
-            sys.modules["isotopo_core.providers.openai"] = None  # type: ignore[assignment]
+            sys.modules["isotope_core.providers.openai"] = None  # type: ignore[assignment]
             # Also block proxy since it depends on openai
-            sys.modules["isotopo_core.providers.proxy"] = None  # type: ignore[assignment]
+            sys.modules["isotope_core.providers.proxy"] = None  # type: ignore[assignment]
 
-            mod = importlib.import_module("isotopo_core.providers")
+            mod = importlib.import_module("isotope_core.providers")
             importlib.reload(mod)
             assert "OpenAIProvider" not in mod.__all__
             assert "ProxyProvider" not in mod.__all__
@@ -38,17 +38,17 @@ class TestOptionalProviderImports:
         modules_to_hide = {
             k: v
             for k, v in sys.modules.items()
-            if "anthropic" in k or "isotopo_core.providers" in k
+            if "anthropic" in k or "isotope_core.providers" in k
         }
         with patch.dict(sys.modules, {**{k: None for k in modules_to_hide}}):
             for key in list(sys.modules.keys()):
-                if key.startswith("isotopo_core.providers"):
+                if key.startswith("isotope_core.providers"):
                     sys.modules.pop(key, None)
 
             sys.modules["anthropic"] = None  # type: ignore[assignment]
-            sys.modules["isotopo_core.providers.anthropic"] = None  # type: ignore[assignment]
+            sys.modules["isotope_core.providers.anthropic"] = None  # type: ignore[assignment]
 
-            mod = importlib.import_module("isotopo_core.providers")
+            mod = importlib.import_module("isotope_core.providers")
             importlib.reload(mod)
             assert "AnthropicProvider" not in mod.__all__
             assert "ThinkingConfig" not in mod.__all__
@@ -58,22 +58,22 @@ class TestOptionalProviderImports:
         modules_to_hide = {
             k: v
             for k, v in sys.modules.items()
-            if "openai" in k or "isotopo_core.providers.proxy" in k
+            if "openai" in k or "isotope_core.providers.proxy" in k
         }
         with patch.dict(sys.modules, {**{k: None for k in modules_to_hide}}):
             for key in list(sys.modules.keys()):
-                if key.startswith("isotopo_core.providers"):
+                if key.startswith("isotope_core.providers"):
                     sys.modules.pop(key, None)
 
-            sys.modules["isotopo_core.providers.proxy"] = None  # type: ignore[assignment]
+            sys.modules["isotope_core.providers.proxy"] = None  # type: ignore[assignment]
 
-            mod = importlib.import_module("isotopo_core.providers")
+            mod = importlib.import_module("isotope_core.providers")
             importlib.reload(mod)
             assert "ProxyProvider" not in mod.__all__
 
     def test_base_always_available(self) -> None:
         """Base provider types should always be importable."""
-        from isotopo_core.providers import (
+        from isotope_core.providers import (
             CircuitState,
             Provider,
             RetryConfig,

@@ -1,6 +1,6 @@
-"""Tests for isotopo_core.types module."""
+"""Tests for isotope_core.types module."""
 
-from isotopo_core.types import (
+from isotope_core.types import (
     AgentEndEvent,
     AgentStartEvent,
     AssistantMessage,

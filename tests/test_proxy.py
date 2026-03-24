@@ -8,8 +8,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from isotopo_core.providers.proxy import ProxyProvider
-from isotopo_core.types import (
+from isotope_core.providers.proxy import ProxyProvider
+from isotope_core.types import (
     Context,
     StopReason,
     TextContent,

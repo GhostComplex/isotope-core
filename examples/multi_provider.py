@@ -14,14 +14,14 @@ import asyncio
 import time
 from collections.abc import AsyncGenerator
 
-from isotopo_core import Agent, RouterProvider
-from isotopo_core.providers.base import (
+from isotope_core import Agent, RouterProvider
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamEvent,
     StreamStartEvent,
     StreamTextDeltaEvent,
 )
-from isotopo_core.types import (
+from isotope_core.types import (
     AssistantMessage,
     Context,
     StopReason,

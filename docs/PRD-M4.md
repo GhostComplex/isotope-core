@@ -1,4 +1,4 @@
-# isotopo-core — Milestone 4: Steering, Follow-up & Session Control
+# isotope-core — Milestone 4: Steering, Follow-up & Session Control
 
 ## Objective
 
@@ -10,7 +10,7 @@ Add interactive control to the agent loop: interrupt mid-run, steer with new mes
 
 ## Deliverables
 
-### 1. Steering Messages (`src/isotopo_core/loop.py` + `agent.py`)
+### 1. Steering Messages (`src/isotope_core/loop.py` + `agent.py`)
 
 Allow injecting user messages mid-execution. When a steering message arrives:
 
@@ -148,7 +148,7 @@ class AgentEndEvent:
 
 ## Branch
 
-`feat/isotopo-core/dev-m4`
+`feat/isotope-core/dev-m4`
 
 ## Definition of Done
 

@@ -12,14 +12,14 @@ import time
 from collections.abc import AsyncGenerator, Callable
 from dataclasses import dataclass, field
 
-from isotopo_core.loop import (
+from isotope_core.loop import (
     AfterToolCallHook,
     AgentLoopConfig,
     BeforeToolCallHook,
     TransformContextHook,
     agent_loop,
 )
-from isotopo_core.middleware import (
+from isotope_core.middleware import (
     LifecycleHooks,
     OnAgentEndHook,
     OnAgentStartHook,
@@ -27,9 +27,9 @@ from isotopo_core.middleware import (
     OnTurnEndHook,
     OnTurnStartHook,
 )
-from isotopo_core.providers.base import Provider
-from isotopo_core.tools import Tool
-from isotopo_core.types import (
+from isotope_core.providers.base import Provider
+from isotope_core.tools import Tool
+from isotope_core.types import (
     AgentEvent,
     AssistantMessage,
     Context,

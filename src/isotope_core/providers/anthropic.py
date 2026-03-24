@@ -12,7 +12,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from isotopo_core.providers.base import (
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamErrorEvent,
     StreamEvent,
@@ -25,11 +25,11 @@ from isotopo_core.providers.base import (
     StreamToolCallEndEvent,
     StreamToolCallStartEvent,
 )
-from isotopo_core.providers.utils import (
+from isotope_core.providers.utils import (
     create_error_message,
     current_timestamp_ms,
 )
-from isotopo_core.types import (
+from isotope_core.types import (
     AssistantMessage,
     Context,
     ImageContent,
@@ -343,7 +343,7 @@ class AnthropicProvider:
             except ImportError as e:
                 raise ImportError(
                     "The 'anthropic' package is required for AnthropicProvider. "
-                    "Install it with: pip install isotopo-core[anthropic]"
+                    "Install it with: pip install isotope-core[anthropic]"
                 ) from e
 
             kwargs: dict[str, Any] = {}

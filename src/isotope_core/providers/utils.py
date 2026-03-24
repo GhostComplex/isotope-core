@@ -12,7 +12,7 @@ from collections.abc import Awaitable, Callable
 from functools import wraps
 from typing import ParamSpec, TypeVar
 
-from isotopo_core.types import AssistantMessage, StopReason, TextContent, Usage
+from isotope_core.types import AssistantMessage, StopReason, TextContent, Usage
 
 # =============================================================================
 # Type Variables

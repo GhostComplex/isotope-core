@@ -1,1 +1,1 @@
-"""isotopo-core standalone TUI for interactive testing."""
+"""isotope-core standalone TUI for interactive testing."""

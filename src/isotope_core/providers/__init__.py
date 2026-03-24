@@ -1,6 +1,6 @@
-"""Provider implementations for isotopo-core."""
+"""Provider implementations for isotope-core."""
 
-from isotopo_core.providers.base import (
+from isotope_core.providers.base import (
     Provider,
     StreamDoneEvent,
     StreamErrorEvent,
@@ -14,10 +14,10 @@ from isotopo_core.providers.base import (
     StreamToolCallEndEvent,
     StreamToolCallStartEvent,
 )
-from isotopo_core.providers.router import CircuitState, RouterProvider
+from isotope_core.providers.router import CircuitState, RouterProvider
 
 # Import utilities (always available)
-from isotopo_core.providers.utils import (
+from isotope_core.providers.utils import (
     RetryConfig,
     create_error_message,
     current_timestamp_ms,
@@ -58,7 +58,7 @@ __all__ = [
 # These will only be available if the corresponding SDK is installed
 
 try:
-    from isotopo_core.providers.openai import OpenAIProvider  # noqa: F401
+    from isotope_core.providers.openai import OpenAIProvider  # noqa: F401
 
     __all__.append("OpenAIProvider")
 except ImportError:
@@ -66,7 +66,7 @@ except ImportError:
     pass
 
 try:
-    from isotopo_core.providers.anthropic import AnthropicProvider, ThinkingConfig  # noqa: F401
+    from isotope_core.providers.anthropic import AnthropicProvider, ThinkingConfig  # noqa: F401
 
     __all__.extend(["AnthropicProvider", "ThinkingConfig"])
 except ImportError:
@@ -74,7 +74,7 @@ except ImportError:
     pass
 
 try:
-    from isotopo_core.providers.proxy import ProxyProvider  # noqa: F401
+    from isotope_core.providers.proxy import ProxyProvider  # noqa: F401
 
     __all__.append("ProxyProvider")
 except ImportError:

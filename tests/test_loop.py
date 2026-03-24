@@ -1,4 +1,4 @@
-"""Tests for isotopo_core.loop module."""
+"""Tests for isotope_core.loop module."""
 
 import asyncio
 import time
@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from isotopo_core.loop import (
+from isotope_core.loop import (
     AfterToolCallContext,
     AfterToolCallResult,
     AgentLoopConfig,
@@ -15,14 +15,14 @@ from isotopo_core.loop import (
     BeforeToolCallResult,
     agent_loop,
 )
-from isotopo_core.providers.base import (
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamEvent,
     StreamStartEvent,
     StreamTextDeltaEvent,
 )
-from isotopo_core.tools import Tool, ToolResult
-from isotopo_core.types import (
+from isotope_core.tools import Tool, ToolResult
+from isotope_core.types import (
     AssistantMessage,
     Context,
     StopReason,
@@ -567,7 +567,7 @@ class _DoneWithoutStartProvider:
 class _ErrorStreamProvider:
     """Provider that yields a StreamErrorEvent (error in stream)."""
 
-    from isotopo_core.providers.base import StreamErrorEvent
+    from isotope_core.providers.base import StreamErrorEvent
 
     def __init__(self, msg: AssistantMessage) -> None:
         self.msg = msg
@@ -580,7 +580,7 @@ class _ErrorStreamProvider:
         max_tokens: int | None = None,
         signal: asyncio.Event | None = None,
     ) -> AsyncGenerator[StreamEvent, None]:
-        from isotopo_core.providers.base import StreamErrorEvent
+        from isotope_core.providers.base import StreamErrorEvent
 
         yield StreamErrorEvent(error=self.msg)
 
@@ -606,7 +606,7 @@ class TestAgentLoopBudget:
     @pytest.mark.asyncio
     async def test_max_turns_with_on_agent_end_hook(self) -> None:
         """Test that on_agent_end hook is called with 'max_turns' reason."""
-        from isotopo_core.middleware import LifecycleHooks
+        from isotope_core.middleware import LifecycleHooks
 
         hook_reason: list[str] = []
 
@@ -662,8 +662,8 @@ class TestAgentLoopBudget:
     @pytest.mark.asyncio
     async def test_max_budget_with_on_agent_end_hook(self) -> None:
         """Test that on_agent_end is called with 'max_budget' when token budget exceeded."""
-        from isotopo_core.middleware import LifecycleHooks
-        from isotopo_core.types import Usage
+        from isotope_core.middleware import LifecycleHooks
+        from isotope_core.types import Usage
 
         hook_reason: list[str] = []
 
@@ -723,7 +723,7 @@ class TestAgentLoopAbortDetailed:
     @pytest.mark.asyncio
     async def test_abort_signal_with_on_agent_end_hook(self) -> None:
         """Test that on_agent_end is called with 'aborted' on abort signal."""
-        from isotopo_core.middleware import LifecycleHooks
+        from isotope_core.middleware import LifecycleHooks
 
         hook_reason: list[str] = []
 
@@ -823,7 +823,7 @@ class TestAgentLoopProviderEdgeCases:
     @pytest.mark.asyncio
     async def test_provider_exception_with_on_error_hook(self) -> None:
         """Test that provider exceptions call on_error hook and re-raise."""
-        from isotopo_core.middleware import LifecycleHooks
+        from isotope_core.middleware import LifecycleHooks
 
         errors_caught: list[Exception] = []
 
@@ -852,7 +852,7 @@ class TestAgentLoopStopReasons:
     @pytest.mark.asyncio
     async def test_error_stop_reason_with_hooks(self) -> None:
         """Test ERROR stop reason triggers on_turn_end and on_error hooks."""
-        from isotopo_core.middleware import LifecycleHooks
+        from isotope_core.middleware import LifecycleHooks
 
         hook_calls: list[str] = []
 
@@ -894,7 +894,7 @@ class TestAgentLoopStopReasons:
     @pytest.mark.asyncio
     async def test_aborted_stop_reason_with_hooks(self) -> None:
         """Test ABORTED stop reason triggers on_turn_end and on_agent_end hooks."""
-        from isotopo_core.middleware import LifecycleHooks
+        from isotope_core.middleware import LifecycleHooks
 
         hook_calls: list[str] = []
 

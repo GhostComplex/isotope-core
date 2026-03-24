@@ -7,11 +7,11 @@ from typing import Any
 
 import pytest
 
-from isotopo_core.agent import Agent
-from isotopo_core.loop import AgentLoopConfig, agent_loop
-from isotopo_core.providers.base import StreamDoneEvent, StreamEvent, StreamStartEvent
-from isotopo_core.tools import Tool, ToolResult
-from isotopo_core.types import (
+from isotope_core.agent import Agent
+from isotope_core.loop import AgentLoopConfig, agent_loop
+from isotope_core.providers.base import StreamDoneEvent, StreamEvent, StreamStartEvent
+from isotope_core.tools import Tool, ToolResult
+from isotope_core.types import (
     AgentEvent,
     AssistantMessage,
     Context,

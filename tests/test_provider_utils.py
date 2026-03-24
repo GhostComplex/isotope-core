@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from isotopo_core.providers.utils import (
+from isotope_core.providers.utils import (
     RetryConfig,
     create_error_message,
     current_timestamp_ms,
@@ -13,7 +13,7 @@ from isotopo_core.providers.utils import (
     map_error_to_stop_reason,
     retry_with_backoff,
 )
-from isotopo_core.types import StopReason, Usage
+from isotope_core.types import StopReason, Usage
 
 
 class TestRetryConfig:
@@ -294,7 +294,7 @@ class TestGetErrorStatusCode:
     """Tests for get_error_status_code."""
 
     def test_direct_status_code(self) -> None:
-        from isotopo_core.providers.utils import get_error_status_code
+        from isotope_core.providers.utils import get_error_status_code
 
         class MockError(Exception):
             status_code = 404
@@ -302,7 +302,7 @@ class TestGetErrorStatusCode:
         assert get_error_status_code(MockError()) == 404
 
     def test_response_status_code(self) -> None:
-        from isotopo_core.providers.utils import get_error_status_code
+        from isotope_core.providers.utils import get_error_status_code
 
         class MockResponse:
             status_code = 502
@@ -313,6 +313,6 @@ class TestGetErrorStatusCode:
         assert get_error_status_code(MockError()) == 502
 
     def test_no_status_code(self) -> None:
-        from isotopo_core.providers.utils import get_error_status_code
+        from isotope_core.providers.utils import get_error_status_code
 
         assert get_error_status_code(Exception("plain error")) is None

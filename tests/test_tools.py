@@ -1,11 +1,11 @@
-"""Tests for isotopo_core.tools module."""
+"""Tests for isotope_core.tools module."""
 
 import asyncio
 from typing import Any
 
 import pytest
 
-from isotopo_core.tools import (
+from isotope_core.tools import (
     Tool,
     ToolError,
     ToolExecutionError,

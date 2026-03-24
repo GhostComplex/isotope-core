@@ -1,4 +1,4 @@
-# isotopo-core — Milestone 7: Testing, CI & Documentation
+# isotope-core — Milestone 7: Testing, CI & Documentation
 
 ## Objective
 
@@ -44,7 +44,7 @@ jobs:
       - run: uv sync --all-extras
       - run: ruff check .
       - run: mypy src/
-      - run: pytest --cov=isotopo_core --cov-report=term-missing --cov-fail-under=90
+      - run: pytest --cov=isotope_core --cov-report=term-missing --cov-fail-under=90
 ```
 
 ### 3. Documentation
@@ -112,7 +112,7 @@ Verify `pyproject.toml`:
 
 ## Branch
 
-`feat/isotopo-core/dev-m7`
+`feat/isotope-core/dev-m7`
 
 ## Definition of Done
 

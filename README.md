@@ -1,4 +1,4 @@
-# isotopo-core
+# isotope-core
 
 Core primitives for building AI agent loops in Python. Provides a turn-based execution engine with tool use, streaming events, context management, middleware, and multi-provider LLM support.
 
@@ -6,21 +6,21 @@ Core primitives for building AI agent loops in Python. Provides a turn-based exe
 
 ```bash
 # Core (no provider SDKs)
-uv add isotopo-core
+uv add isotope-core
 
 # With extras
-uv add "isotopo-core[openai]"          # OpenAI provider
-uv add "isotopo-core[anthropic]"       # Anthropic provider
-uv add "isotopo-core[tiktoken]"        # Accurate token counting
-uv add "isotopo-core[openai,anthropic,tiktoken]"  # Everything
+uv add "isotope-core[openai]"          # OpenAI provider
+uv add "isotope-core[anthropic]"       # Anthropic provider
+uv add "isotope-core[tiktoken]"        # Accurate token counting
+uv add "isotope-core[openai,anthropic,tiktoken]"  # Everything
 ```
 
 ## Quick Start
 
 ```python
 import asyncio
-from isotopo_core import Agent
-from isotopo_core.providers.anthropic import AnthropicProvider
+from isotope_core import Agent
+from isotope_core.providers.anthropic import AnthropicProvider
 
 agent = Agent(
     provider=AnthropicProvider(model="claude-sonnet-4-20250514"),
@@ -39,8 +39,8 @@ asyncio.run(main())
 ## Architecture
 
 ```
-isotopo-core/
-├── src/isotopo_core/
+isotope-core/
+├── src/isotope_core/
 │   ├── __init__.py        # Public API re-exports
 │   ├── types.py           # Core types: Message, Content, Event, Context
 │   ├── loop.py            # Agent loop: turn-based execution engine
@@ -78,8 +78,8 @@ The agent loop is the execution engine. It runs turn-by-turn:
 5. Repeat until no more tool calls (or budget exceeded)
 
 ```python
-from isotopo_core import agent_loop, AgentLoopConfig
-from isotopo_core.types import Context, UserMessage, TextContent
+from isotope_core import agent_loop, AgentLoopConfig
+from isotope_core.types import Context, UserMessage, TextContent
 
 config = AgentLoopConfig(
     provider=my_provider,
@@ -100,7 +100,7 @@ async for event in agent_loop(prompts, context, config):
 The `Agent` class wraps the loop with state management, subscriptions, steering, and follow-up queues:
 
 ```python
-from isotopo_core import Agent
+from isotope_core import Agent
 
 agent = Agent(
     provider=my_provider,
@@ -152,7 +152,7 @@ Every phase of the agent loop emits typed events:
 Tools are defined with typed schemas and async execute functions:
 
 ```python
-from isotopo_core.tools import Tool, ToolResult, tool
+from isotope_core.tools import Tool, ToolResult, tool
 
 # Class-based
 read_file = Tool(
@@ -177,7 +177,7 @@ async def get_weather(tool_call_id, params, signal, on_update):
 LLM providers implement the `Provider` protocol:
 
 ```python
-from isotopo_core.providers.base import Provider
+from isotope_core.providers.base import Provider
 
 class MyProvider(Provider):
     @property
@@ -203,7 +203,7 @@ Built-in providers:
 Token counting, pruning strategies, and context transforms:
 
 ```python
-from isotopo_core import (
+from isotope_core import (
     count_tokens,
     estimate_context_usage,
     SlidingWindowStrategy,
@@ -237,7 +237,7 @@ agent = Agent(
 Composable middleware chain for event interception:
 
 ```python
-from isotopo_core import (
+from isotope_core import (
     LoggingMiddleware,
     TokenTrackingMiddleware,
     EventFilterMiddleware,
@@ -267,7 +267,7 @@ class RateLimiterMiddleware:
 ### Router & Circuit Breaker
 
 ```python
-from isotopo_core import RouterProvider
+from isotope_core import RouterProvider
 
 router = RouterProvider(
     primary=openai_provider,
@@ -300,15 +300,15 @@ All examples use mock providers and require no API keys:
 ## Development
 
 ```bash
-git clone https://github.com/GhostComplex/isotopo-core.git
-cd isotopo-core
+git clone https://github.com/GhostComplex/isotope-core.git
+cd isotope-core
 uv sync --all-extras
 
 # Run tests
 uv run pytest
 
 # Run tests with coverage
-uv run pytest --cov=isotopo_core --cov-fail-under=90
+uv run pytest --cov=isotope_core --cov-fail-under=90
 
 # Lint
 uv run ruff check src/ tests/ examples/

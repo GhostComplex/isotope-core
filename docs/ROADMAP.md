@@ -1,4 +1,4 @@
-# isotopo-core — Product Roadmap
+# isotope-core — Product Roadmap
 
 ## Vision
 
@@ -17,7 +17,7 @@ Patterns drawn from:
 
 > Foundation. Get the loop running.
 
-**Branch:** `feat/isotopo-core/dev-m1`
+**Branch:** `feat/isotope-core/dev-m1`
 **PRD:** `docs/PRD-M1.md`
 
 **Deliverables:**
@@ -37,7 +37,7 @@ Patterns drawn from:
 
 > Make it actually talk to LLMs.
 
-**Branch:** `feat/isotopo-core/dev-m2`
+**Branch:** `feat/isotope-core/dev-m2`
 
 **Deliverables:**
 - `providers/openai.py` — OpenAI Chat Completions API (streaming)
@@ -62,7 +62,7 @@ Patterns drawn from:
 
 > Handle real conversations that exceed context windows.
 
-**Branch:** `feat/isotopo-core/dev-m3`
+**Branch:** `feat/isotope-core/dev-m3`
 
 **Deliverables:**
 - `context.py` — Context management module
@@ -85,7 +85,7 @@ Patterns drawn from:
 
 > Interactive control: interrupt, steer, queue, resume.
 
-**Branch:** `feat/isotopo-core/dev-m4`
+**Branch:** `feat/isotope-core/dev-m4`
 
 **Deliverables:**
 - Steering messages — inject user messages mid-execution (after current tool calls finish)
@@ -105,7 +105,7 @@ Patterns drawn from:
 
 > Swap models mid-conversation, fall back on failures.
 
-**Branch:** `feat/isotopo-core/dev-m5`
+**Branch:** `feat/isotope-core/dev-m5`
 
 **Deliverables:**
 - `providers/router.py` — Model routing layer
@@ -127,7 +127,7 @@ Patterns drawn from:
 
 > Extensibility without subclassing.
 
-**Branch:** `feat/isotopo-core/dev-m6`
+**Branch:** `feat/isotope-core/dev-m6`
 
 **Deliverables:**
 - Hook system formalization:
@@ -150,14 +150,14 @@ Patterns drawn from:
 
 > Harden everything for production use.
 
-**Branch:** `feat/isotopo-core/dev-m7`
+**Branch:** `feat/isotope-core/dev-m7`
 
 **Deliverables:**
 - Mock provider enhancements:
   - Scripted responses (sequence of responses for deterministic testing)
   - Simulated delays and errors
   - Tool call simulation
-- `isotopo_core.testing` module — public test utilities
+- `isotope_core.testing` module — public test utilities
   - `MockProvider` with response scripting
   - `assert_events()` helper for event sequence validation
   - `record_events()` context manager

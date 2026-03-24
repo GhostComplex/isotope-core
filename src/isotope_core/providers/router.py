@@ -12,13 +12,13 @@ from collections.abc import AsyncGenerator
 from enum import StrEnum
 from typing import Any
 
-from isotopo_core.providers.base import (
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamErrorEvent,
     StreamEvent,
 )
-from isotopo_core.providers.utils import is_retryable_error
-from isotopo_core.types import AggregatedUsage, Context, Usage
+from isotope_core.providers.utils import is_retryable_error
+from isotope_core.types import AggregatedUsage, Context, Usage
 
 
 class CircuitState(StrEnum):

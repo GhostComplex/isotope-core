@@ -8,14 +8,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from isotopo_core.providers.anthropic import (
+from isotope_core.providers.anthropic import (
     AnthropicProvider,
     ThinkingConfig,
     _convert_context_to_anthropic,
     _convert_tools,
     _map_stop_reason,
 )
-from isotopo_core.types import (
+from isotope_core.types import (
     AssistantMessage,
     Context,
     ImageContent,
@@ -631,23 +631,23 @@ class TestParseStreamingJson:
     """Tests for _parse_streaming_json."""
 
     def test_empty_string(self) -> None:
-        from isotopo_core.providers.anthropic import _parse_streaming_json
+        from isotope_core.providers.anthropic import _parse_streaming_json
 
         assert _parse_streaming_json("") == {}
 
     def test_valid_json(self) -> None:
-        from isotopo_core.providers.anthropic import _parse_streaming_json
+        from isotope_core.providers.anthropic import _parse_streaming_json
 
         assert _parse_streaming_json('{"key": "value"}') == {"key": "value"}
 
     def test_incomplete_json_repair(self) -> None:
-        from isotopo_core.providers.anthropic import _parse_streaming_json
+        from isotope_core.providers.anthropic import _parse_streaming_json
 
         result = _parse_streaming_json('{"key": "value"')
         assert result == {"key": "value"}
 
     def test_unfixable_json(self) -> None:
-        from isotopo_core.providers.anthropic import _parse_streaming_json
+        from isotope_core.providers.anthropic import _parse_streaming_json
 
         assert _parse_streaming_json("{broken: json: bad") == {}
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 import asyncio
 import time
 
-from isotopo_core import (
+from isotope_core import (
     SelectivePruningStrategy,
     SlidingWindowStrategy,
     count_tokens,
@@ -23,7 +23,7 @@ from isotopo_core import (
     get_context_window,
     pin_message,
 )
-from isotopo_core.types import (
+from isotope_core.types import (
     AssistantMessage,
     Context,
     Message,

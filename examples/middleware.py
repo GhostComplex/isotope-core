@@ -15,7 +15,7 @@ import asyncio
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 
-from isotopo_core import (
+from isotope_core import (
     Agent,
     AgentEvent,
     EventFilterMiddleware,
@@ -23,13 +23,13 @@ from isotopo_core import (
     MiddlewareContext,
     TokenTrackingMiddleware,
 )
-from isotopo_core.providers.base import (
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamEvent,
     StreamStartEvent,
     StreamTextDeltaEvent,
 )
-from isotopo_core.types import (
+from isotope_core.types import (
     AssistantMessage,
     Context,
     StopReason,

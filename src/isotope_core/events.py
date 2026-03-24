@@ -12,7 +12,7 @@ from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING, Generic, TypeVar
 
 if TYPE_CHECKING:
-    from isotopo_core.types import AgentEvent, Message
+    from isotope_core.types import AgentEvent, Message
 
 T = TypeVar("T")  # Event type
 R = TypeVar("R")  # Final result type
@@ -167,7 +167,7 @@ class AgentEventStream(EventStream["AgentEvent", "list[Message]"]):
 
     def __init__(self) -> None:
         """Initialize an AgentEventStream."""
-        from isotopo_core.types import AgentEndEvent
+        from isotope_core.types import AgentEndEvent
 
         def is_complete(e: AgentEvent) -> bool:
             return e.type == "agent_end"

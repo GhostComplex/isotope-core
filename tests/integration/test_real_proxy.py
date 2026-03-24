@@ -1,6 +1,6 @@
 """Integration tests using the real proxy at localhost:4141/v1.
 
-These tests exercise isotopo-core against a live OpenAI-compatible proxy.
+These tests exercise isotope-core against a live OpenAI-compatible proxy.
 All tests are marked with ``@pytest.mark.integration`` and are skipped
 automatically when the proxy is unreachable.
 
@@ -15,10 +15,10 @@ from typing import Any
 
 import pytest
 
-from isotopo_core import Agent
-from isotopo_core.providers.proxy import ProxyProvider
-from isotopo_core.tools import Tool
-from isotopo_core.types import (
+from isotope_core import Agent
+from isotope_core.providers.proxy import ProxyProvider
+from isotope_core.tools import Tool
+from isotope_core.types import (
     AgentEvent,
     AssistantMessage,
     Context,
