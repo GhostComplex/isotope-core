@@ -360,7 +360,10 @@ class OpenAIProvider:
             # Track current content block state
             current_block: TextContent | ThinkingContent | ToolCallContent | None = None
             current_block_index = -1
-            partial_tool_args: str = ""
+            # Track tool calls by OpenAI's tool_call index for parallel tool calls
+            tool_call_blocks: dict[int, ToolCallContent] = {}
+            tool_call_content_indices: dict[int, int] = {}
+            partial_tool_args: dict[int, str] = {}
 
             def finish_current_block() -> StreamEvent | None:
                 """Finish the current content block and return end event."""
@@ -384,8 +387,13 @@ class OpenAIProvider:
                         partial=output,
                     )
                 elif isinstance(current_block, ToolCallContent):
-                    # Parse final arguments
-                    current_block.arguments = _parse_streaming_json(partial_tool_args)
+                    # Find which tool call index this block belongs to
+                    tc_idx = next(
+                        (idx for idx, blk in tool_call_blocks.items() if blk is current_block),
+                        None,
+                    )
+                    args_str = partial_tool_args.get(tc_idx, "") if tc_idx is not None else ""
+                    current_block.arguments = _parse_streaming_json(args_str)
                     event = StreamToolCallEndEvent(
                         content_index=current_block_index,
                         tool_call_id=current_block.id,
@@ -393,7 +401,6 @@ class OpenAIProvider:
                         arguments=dict(current_block.arguments),
                         partial=output,
                     )
-                    partial_tool_args = ""
 
                 current_block = None
                 return event
@@ -473,51 +480,83 @@ class OpenAIProvider:
                 # Handle tool calls
                 if delta.tool_calls:
                     for tool_call in delta.tool_calls:
-                        # Check if this is a new tool call
-                        if tool_call.id or (
-                            current_block is None or not isinstance(current_block, ToolCallContent)
-                        ):
-                            end_event = finish_current_block()
-                            if end_event:
-                                yield end_event
+                        tc_index = getattr(tool_call, "index", None)
+                        if tc_index is None:
+                            tc_index = 0
 
-                            current_block = ToolCallContent(
+                        if tc_index not in tool_call_blocks:
+                            # New tool call — finish previous non-tool block
+                            if current_block is not None and not isinstance(
+                                current_block, ToolCallContent
+                            ):
+                                end_event = finish_current_block()
+                                if end_event:
+                                    yield end_event
+
+                            block = ToolCallContent(
                                 id=tool_call.id or "",
                                 name=tool_call.function.name if tool_call.function else "",
                                 arguments={},
                             )
-                            output.content.append(current_block)
-                            current_block_index = len(output.content) - 1
-                            partial_tool_args = ""
+                            output.content.append(block)
+                            content_idx = len(output.content) - 1
+
+                            tool_call_blocks[tc_index] = block
+                            tool_call_content_indices[tc_index] = content_idx
+                            partial_tool_args[tc_index] = ""
+
+                            current_block = block
+                            current_block_index = content_idx
 
                             yield StreamToolCallStartEvent(
-                                content_index=current_block_index,
+                                content_index=content_idx,
                                 partial=output,
                             )
 
-                        # Update tool call
-                        if isinstance(current_block, ToolCallContent):
-                            if tool_call.id:
-                                current_block.id = tool_call.id
-                            if tool_call.function:
-                                if tool_call.function.name:
-                                    current_block.name = tool_call.function.name
-                                if tool_call.function.arguments:
-                                    partial_tool_args += tool_call.function.arguments
-                                    current_block.arguments = _parse_streaming_json(
-                                        partial_tool_args
-                                    )
+                        # Update the tool call block for this index
+                        block = tool_call_blocks[tc_index]
+                        content_idx = tool_call_content_indices[tc_index]
 
-                                    yield StreamToolCallDeltaEvent(
-                                        content_index=current_block_index,
-                                        delta=tool_call.function.arguments,
-                                        partial=output,
-                                    )
+                        if tool_call.id:
+                            block.id = tool_call.id
+                        if tool_call.function:
+                            if tool_call.function.name:
+                                block.name = tool_call.function.name
+                            if tool_call.function.arguments:
+                                partial_tool_args[tc_index] += tool_call.function.arguments
+                                block.arguments = _parse_streaming_json(
+                                    partial_tool_args[tc_index]
+                                )
 
-            # Finish any remaining block
-            end_event = finish_current_block()
-            if end_event:
-                yield end_event
+                                yield StreamToolCallDeltaEvent(
+                                    content_index=content_idx,
+                                    delta=tool_call.function.arguments,
+                                    partial=output,
+                                )
+
+                        # Keep current_block pointing to the latest active tool call
+                        current_block = block
+                        current_block_index = content_idx
+
+            # Finish any remaining non-tool-call block (text/thinking)
+            if current_block is not None and not isinstance(current_block, ToolCallContent):
+                end_event = finish_current_block()
+                if end_event:
+                    yield end_event
+
+            # Finish all tool call blocks
+            for tc_idx in list(tool_call_blocks.keys()):
+                block = tool_call_blocks[tc_idx]
+                content_idx = tool_call_content_indices[tc_idx]
+                args_str = partial_tool_args.get(tc_idx, "")
+                block.arguments = _parse_streaming_json(args_str)
+                yield StreamToolCallEndEvent(
+                    content_index=content_idx,
+                    tool_call_id=block.id,
+                    tool_name=block.name,
+                    arguments=dict(block.arguments),
+                    partial=output,
+                )
 
             # Check for abort after stream ends
             if signal and signal.is_set():

@@ -81,6 +81,61 @@ from isotope_core.types import AgentEvent, AssistantMessage  # noqa: E402
 PROXY_BASE_URL = "http://localhost:4141/v1"
 DEFAULT_MODEL = "claude-opus-4.6"
 
+# Workspace directory — all relative file paths are resolved against this.
+WORKSPACE = os.getcwd()
+
+
+def _resolve_path(path: str) -> str:
+    """Resolve a tool path to an absolute path.
+
+    - Paths starting with ``~`` are expanded via :func:`os.path.expanduser`.
+    - Absolute paths are returned as-is.
+    - Relative paths are joined with :data:`WORKSPACE` so that the LLM's
+      relative references always land in the correct directory regardless
+      of the process's *cwd*.
+    """
+    path = os.path.expanduser(path)
+    if not os.path.isabs(path):
+        path = os.path.join(WORKSPACE, path)
+    return path
+
+_SYSTEM_PROMPT_TEMPLATE = """\
+You are isotope, an expert software engineer assistant. You help users with \
+coding tasks including writing, reading, editing, and debugging code.
+
+Your workspace directory is {cwd} — use this as the base for all \
+file operations unless the user specifies an absolute path.
+
+You have access to the following tools:
+
+1. **read_file** — Read a file's contents.
+   Parameters: path (string, required) — absolute or relative file path.
+
+2. **write_file** — Create or overwrite a file. Creates parent directories \
+if needed.
+   Parameters: path (string, required), content (string, required).
+
+3. **edit_file** — Edit a file by replacing an exact text match. The \
+old_text must appear exactly once in the file.
+   Parameters: path (string, required), old_text (string, required), \
+new_text (string, required).
+
+4. **terminal** — Execute a shell command and return stdout/stderr. \
+Timeout defaults to 30s, max 120s.
+   Parameters: command (string, required), timeout (number, optional).
+
+5. **get_current_time** — Get the current date and time in UTC.
+
+Guidelines:
+- Read files before editing to understand context.
+- Use edit_file for surgical changes; use write_file only for new files or \
+full rewrites.
+- Prefer relative paths from the workspace directory when possible.
+- Keep responses concise and actionable.
+"""
+
+DEFAULT_SYSTEM_PROMPT = _SYSTEM_PROMPT_TEMPLATE.format(cwd=WORKSPACE)
+
 BETWEEN_MESSAGE_COMMANDS = (
     "/tools          Toggle tools",
     "/model <name>   Switch model",
@@ -147,12 +202,10 @@ def _make_tools() -> list[Tool]:
         signal: asyncio.Event | None = None,
         on_update: Any = None,
     ) -> ToolResult:
-        import os
-
         path = params.get("path", "")
         if not path:
             return ToolResult.error("Missing required parameter: path")
-        path = os.path.expanduser(path)
+        path = _resolve_path(path)
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
                 content = f.read()
@@ -173,13 +226,11 @@ def _make_tools() -> list[Tool]:
         signal: asyncio.Event | None = None,
         on_update: Any = None,
     ) -> ToolResult:
-        import os
-
         path = params.get("path", "")
         content = params.get("content", "")
         if not path:
             return ToolResult.error("Missing required parameter: path")
-        path = os.path.expanduser(path)
+        path = _resolve_path(path)
         try:
             os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
             with open(path, "w", encoding="utf-8") as f:
@@ -196,8 +247,6 @@ def _make_tools() -> list[Tool]:
         signal: asyncio.Event | None = None,
         on_update: Any = None,
     ) -> ToolResult:
-        import os
-
         path = params.get("path", "")
         old_text = params.get("old_text", "")
         new_text = params.get("new_text", "")
@@ -205,7 +254,7 @@ def _make_tools() -> list[Tool]:
             return ToolResult.error("Missing required parameter: path")
         if not old_text:
             return ToolResult.error("Missing required parameter: old_text")
-        path = os.path.expanduser(path)
+        path = _resolve_path(path)
         try:
             with open(path, encoding="utf-8") as f:
                 content = f.read()
@@ -244,6 +293,7 @@ def _make_tools() -> list[Tool]:
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.STDOUT,
+                cwd=WORKSPACE,
             )
             try:
                 stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
@@ -402,8 +452,8 @@ class TUI:
 
     def __init__(self) -> None:
         self.model = DEFAULT_MODEL
-        self.system_prompt = ""
-        self.tools_enabled = False
+        self.system_prompt = DEFAULT_SYSTEM_PROMPT
+        self.tools_enabled = True
         self.debug = False
         self.tools = _make_tools()
         self.agent: Agent | None = None
@@ -997,6 +1047,7 @@ class TUI:
         """Main TUI loop."""
         _print("isotope-core TUI v0.1", style="info")
         _print(f"Proxy: {PROXY_BASE_URL}", style="dim")
+        _print(f"Workspace: {WORKSPACE}", style="dim")
 
         # Fetch and select model
         models = await _fetch_models(PROXY_BASE_URL)
@@ -1004,9 +1055,12 @@ class TUI:
         _print(f"Model: {self.model}", style="model")
 
         # System prompt
-        self.system_prompt = await self._get_system_prompt()
-        if self.system_prompt:
+        custom_prompt = await self._get_system_prompt()
+        if custom_prompt:
+            self.system_prompt = custom_prompt
             _print(f"System prompt: {self.system_prompt}", style="dim")
+        else:
+            _print("Using default system prompt (isotope agent)", style="dim")
 
         # Create agent
         self.agent = self._create_agent()

@@ -61,6 +61,7 @@ def _mock_chunk(
 
     if tool_call_id or tool_call_name or tool_call_args:
         tc = MagicMock()
+        tc.index = 0
         tc.id = tool_call_id
         tc.function = MagicMock()
         tc.function.name = tool_call_name
