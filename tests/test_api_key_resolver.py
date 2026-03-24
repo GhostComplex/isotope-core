@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from isotopo_core.providers.openai import OpenAIProvider
-from isotopo_core.types import (
+from isotope_core.providers.openai import OpenAIProvider
+from isotope_core.types import (
     Context,
     TextContent,
     UserMessage,

@@ -12,14 +12,14 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from isotopo_core.middleware import (
+from isotope_core.middleware import (
     LifecycleHooks,
     MiddlewareContext,
     run_middleware_chain,
 )
-from isotopo_core.providers.base import Provider
-from isotopo_core.tools import Tool, ToolResult
-from isotopo_core.types import (
+from isotope_core.providers.base import Provider
+from isotope_core.tools import Tool, ToolResult
+from isotope_core.types import (
     AgentEndEvent,
     AgentEvent,
     AgentStartEvent,

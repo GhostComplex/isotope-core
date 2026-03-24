@@ -11,7 +11,7 @@ import json
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
-from isotopo_core.providers.base import (
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamErrorEvent,
     StreamEvent,
@@ -24,11 +24,11 @@ from isotopo_core.providers.base import (
     StreamToolCallEndEvent,
     StreamToolCallStartEvent,
 )
-from isotopo_core.providers.utils import (
+from isotope_core.providers.utils import (
     create_error_message,
     current_timestamp_ms,
 )
-from isotopo_core.types import (
+from isotope_core.types import (
     AssistantMessage,
     Context,
     ImageContent,
@@ -286,7 +286,7 @@ class OpenAIProvider:
             except ImportError as e:
                 raise ImportError(
                     "The 'openai' package is required for OpenAIProvider. "
-                    "Install it with: pip install isotopo-core[openai]"
+                    "Install it with: pip install isotope-core[openai]"
                 ) from e
 
             self._client = openai.AsyncOpenAI(

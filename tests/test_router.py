@@ -8,7 +8,7 @@ from collections.abc import AsyncGenerator
 
 import pytest
 
-from isotopo_core.providers.base import (
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamErrorEvent,
     StreamEvent,
@@ -16,8 +16,8 @@ from isotopo_core.providers.base import (
     StreamTextDeltaEvent,
     StreamTextEndEvent,
 )
-from isotopo_core.providers.router import CircuitState, RouterProvider, _CircuitBreaker
-from isotopo_core.types import (
+from isotope_core.providers.router import CircuitState, RouterProvider, _CircuitBreaker
+from isotope_core.types import (
     AssistantMessage,
     Context,
     StopReason,

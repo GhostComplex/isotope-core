@@ -1,4 +1,4 @@
-"""Tests for isotopo_core.middleware — chain ordering, passthrough, suppression, modification."""
+"""Tests for isotope_core.middleware — chain ordering, passthrough, suppression, modification."""
 
 from __future__ import annotations
 
@@ -9,17 +9,17 @@ from typing import Any
 
 import pytest
 
-from isotopo_core.loop import AgentLoopConfig, agent_loop
-from isotopo_core.middleware import (
+from isotope_core.loop import AgentLoopConfig, agent_loop
+from isotope_core.middleware import (
     MiddlewareContext,
     run_middleware_chain,
 )
-from isotopo_core.providers.base import (
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamEvent,
     StreamStartEvent,
 )
-from isotopo_core.types import (
+from isotope_core.types import (
     AgentEndEvent,
     AgentEvent,
     AgentStartEvent,

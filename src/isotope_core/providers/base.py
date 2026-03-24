@@ -14,10 +14,10 @@ from pydantic import BaseModel
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
-    from isotopo_core.types import Context
+    from isotope_core.types import Context
 
 # Import AssistantMessage directly (not under TYPE_CHECKING) so Pydantic can resolve it
-from isotopo_core.types import AssistantMessage
+from isotope_core.types import AssistantMessage
 
 # =============================================================================
 # Stream Events (yielded by provider.stream())

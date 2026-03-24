@@ -10,11 +10,11 @@ import asyncio
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from typing import TYPE_CHECKING
 
-from isotopo_core.providers.base import StreamEvent
-from isotopo_core.providers.openai import OpenAIProvider
+from isotope_core.providers.base import StreamEvent
+from isotope_core.providers.openai import OpenAIProvider
 
 if TYPE_CHECKING:
-    from isotopo_core.types import Context
+    from isotope_core.types import Context
 
 
 class ProxyProvider(OpenAIProvider):

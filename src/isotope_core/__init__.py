@@ -1,10 +1,10 @@
-"""isotopo-core - Core primitives for building AI agent loops.
+"""isotope-core - Core primitives for building AI agent loops.
 
-This module exports the public API for isotopo-core.
+This module exports the public API for isotope-core.
 """
 
-from isotopo_core.agent import Agent, AgentState
-from isotopo_core.context import (
+from isotope_core.agent import Agent, AgentState
+from isotope_core.context import (
     MODEL_CONTEXT_WINDOWS,
     ContextUsage,
     PruneResult,
@@ -21,8 +21,8 @@ from isotopo_core.context import (
     pin_message,
     unpin_message,
 )
-from isotopo_core.events import AgentEventStream, EventStream
-from isotopo_core.loop import (
+from isotope_core.events import AgentEventStream, EventStream
+from isotope_core.loop import (
     AfterToolCallContext,
     AfterToolCallResult,
     AgentLoopConfig,
@@ -31,7 +31,7 @@ from isotopo_core.loop import (
     TransformContextHook,
     agent_loop,
 )
-from isotopo_core.middleware import (
+from isotope_core.middleware import (
     EventFilterMiddleware,
     LifecycleHooks,
     LoggingMiddleware,
@@ -45,7 +45,7 @@ from isotopo_core.middleware import (
     TokenTrackingMiddleware,
     run_middleware_chain,
 )
-from isotopo_core.providers.base import (
+from isotope_core.providers.base import (
     Provider,
     StreamDoneEvent,
     StreamErrorEvent,
@@ -59,12 +59,12 @@ from isotopo_core.providers.base import (
     StreamToolCallEndEvent,
     StreamToolCallStartEvent,
 )
-from isotopo_core.providers.router import CircuitState, RouterProvider
-from isotopo_core.providers.utils import (
+from isotope_core.providers.router import CircuitState, RouterProvider
+from isotope_core.providers.utils import (
     RetryConfig,
     retry_with_backoff,
 )
-from isotopo_core.tools import (
+from isotope_core.tools import (
     Tool,
     ToolError,
     ToolExecutionError,
@@ -73,7 +73,7 @@ from isotopo_core.tools import (
     ToolValidationError,
     tool,
 )
-from isotopo_core.types import (
+from isotope_core.types import (
     AgentEndEvent,
     AgentEvent,
     AgentStartEvent,
@@ -213,21 +213,21 @@ __version__ = "0.1.0"
 
 # Graceful imports for optional provider dependencies
 try:
-    from isotopo_core.providers.openai import OpenAIProvider  # noqa: F401
+    from isotope_core.providers.openai import OpenAIProvider  # noqa: F401
 
     __all__.append("OpenAIProvider")
 except ImportError:
     pass
 
 try:
-    from isotopo_core.providers.anthropic import AnthropicProvider, ThinkingConfig  # noqa: F401
+    from isotope_core.providers.anthropic import AnthropicProvider, ThinkingConfig  # noqa: F401
 
     __all__.extend(["AnthropicProvider", "ThinkingConfig"])
 except ImportError:
     pass
 
 try:
-    from isotopo_core.providers.proxy import ProxyProvider  # noqa: F401
+    from isotope_core.providers.proxy import ProxyProvider  # noqa: F401
 
     __all__.append("ProxyProvider")
 except ImportError:

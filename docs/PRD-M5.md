@@ -1,4 +1,4 @@
-# isotopo-core — Milestone 5: Multi-Provider & Model Routing
+# isotope-core — Milestone 5: Multi-Provider & Model Routing
 
 ## Objective
 
@@ -10,7 +10,7 @@ Support dynamic model switching, fallback chains, and OpenAI-compatible proxy pr
 
 ## Deliverables
 
-### 1. Router Provider (`src/isotopo_core/providers/router.py`)
+### 1. Router Provider (`src/isotope_core/providers/router.py`)
 
 A provider that wraps other providers with routing logic:
 
@@ -34,7 +34,7 @@ class RouterProvider:
 - **Health tracking** — track per-provider success/failure rates
 - **Dynamic switching** — `router.set_primary(provider)` to switch primary mid-session
 
-### 2. Proxy Provider (`src/isotopo_core/providers/proxy.py`)
+### 2. Proxy Provider (`src/isotope_core/providers/proxy.py`)
 
 An OpenAI-compatible provider for any API that follows the OpenAI Chat Completions format:
 
@@ -141,7 +141,7 @@ This helps with logging, usage tracking, and identifying which provider actually
 
 ## Branch
 
-`feat/isotopo-core/dev-m5`
+`feat/isotope-core/dev-m5`
 
 ## Definition of Done
 

@@ -1,4 +1,4 @@
-"""isotopo-core TUI — interactive chat against a local proxy.
+"""isotope-core TUI — interactive chat against a local proxy.
 
 Usage:
     python tui/main.py              # from repo root
@@ -70,13 +70,13 @@ except ImportError:
     HAS_PROMPT_TOOLKIT = False
 
 # ---------------------------------------------------------------------------
-# Imports from isotopo-core
+# Imports from isotope-core
 # ---------------------------------------------------------------------------
 
-from isotopo_core import Agent  # noqa: E402
-from isotopo_core.providers.proxy import ProxyProvider  # noqa: E402
-from isotopo_core.tools import Tool, ToolResult  # noqa: E402
-from isotopo_core.types import AgentEvent, AssistantMessage  # noqa: E402
+from isotope_core import Agent  # noqa: E402
+from isotope_core.providers.proxy import ProxyProvider  # noqa: E402
+from isotope_core.tools import Tool, ToolResult  # noqa: E402
+from isotope_core.types import AgentEvent, AssistantMessage  # noqa: E402
 
 PROXY_BASE_URL = "http://localhost:4141/v1"
 DEFAULT_MODEL = "claude-opus-4.6"
@@ -398,7 +398,7 @@ async def _fetch_models(base_url: str) -> list[str]:
 
 
 class TUI:
-    """Interactive TUI for isotopo-core."""
+    """Interactive TUI for isotope-core."""
 
     def __init__(self) -> None:
         self.model = DEFAULT_MODEL
@@ -995,7 +995,7 @@ class TUI:
 
     async def run(self) -> None:
         """Main TUI loop."""
-        _print("isotopo-core TUI v0.1", style="info")
+        _print("isotope-core TUI v0.1", style="info")
         _print(f"Proxy: {PROXY_BASE_URL}", style="dim")
 
         # Fetch and select model

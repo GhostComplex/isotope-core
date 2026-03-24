@@ -1,4 +1,4 @@
-# isotopo-core — Milestone 6: Hooks & Middleware
+# isotope-core — Milestone 6: Hooks & Middleware
 
 ## Objective
 
@@ -10,7 +10,7 @@ Build a composable middleware/plugin system for the agent loop, enabling extensi
 
 ## Deliverables
 
-### 1. Middleware Protocol (`src/isotopo_core/middleware.py`)
+### 1. Middleware Protocol (`src/isotope_core/middleware.py`)
 
 A middleware layer that intercepts events flowing through the agent loop:
 
@@ -160,7 +160,7 @@ The loop wraps each yielded event through the middleware chain. If middleware re
 
 ## Branch
 
-`feat/isotopo-core/dev-m6`
+`feat/isotope-core/dev-m6`
 
 ## Definition of Done
 

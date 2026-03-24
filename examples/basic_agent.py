@@ -11,15 +11,15 @@ import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from isotopo_core import Agent
-from isotopo_core.providers.base import (
+from isotope_core import Agent
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamEvent,
     StreamStartEvent,
     StreamTextDeltaEvent,
 )
-from isotopo_core.tools import Tool, ToolResult
-from isotopo_core.types import (
+from isotope_core.tools import Tool, ToolResult
+from isotope_core.types import (
     AssistantMessage,
     Context,
     StopReason,

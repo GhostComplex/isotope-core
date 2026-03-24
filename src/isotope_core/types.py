@@ -1,4 +1,4 @@
-"""Core types for isotopo-core agent loop.
+"""Core types for isotope-core agent loop.
 
 This module defines all foundational types for the agent loop system using
 Pydantic models and Python Protocols.

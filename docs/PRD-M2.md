@@ -1,4 +1,4 @@
-# isotopo-core — Milestone 2: OpenAI & Anthropic Providers
+# isotope-core — Milestone 2: OpenAI & Anthropic Providers
 
 ## Objective
 
@@ -7,11 +7,11 @@ Implement real LLM providers for OpenAI and Anthropic that plug into the existin
 ## Prerequisites
 
 - M1 merged — all core types, Provider protocol, and agent loop are in place
-- Provider protocol defined in `src/isotopo_core/providers/base.py`
+- Provider protocol defined in `src/isotope_core/providers/base.py`
 
 ## Deliverables
 
-### 1. OpenAI Provider (`src/isotopo_core/providers/openai.py`)
+### 1. OpenAI Provider (`src/isotope_core/providers/openai.py`)
 
 Implement the Provider protocol for OpenAI's Chat Completions API with streaming.
 
@@ -50,7 +50,7 @@ class OpenAIProvider:
         ...
 ```
 
-### 2. Anthropic Provider (`src/isotopo_core/providers/anthropic.py`)
+### 2. Anthropic Provider (`src/isotope_core/providers/anthropic.py`)
 
 Implement the Provider protocol for Anthropic's Messages API with streaming.
 
@@ -91,7 +91,7 @@ class AnthropicProvider:
         ...
 ```
 
-### 3. Provider Utilities (`src/isotopo_core/providers/utils.py`)
+### 3. Provider Utilities (`src/isotope_core/providers/utils.py`)
 
 Shared utilities for providers:
 
@@ -102,13 +102,13 @@ Shared utilities for providers:
 - `map_error_to_stop_reason()` — Map HTTP errors to appropriate StopReason
 - `create_error_message()` — Create an AssistantMessage with error info
 
-### 4. Provider Registration (`src/isotopo_core/providers/__init__.py`)
+### 4. Provider Registration (`src/isotope_core/providers/__init__.py`)
 
 Update the providers package to export the new providers:
 
 ```python
-from isotopo_core.providers.openai import OpenAIProvider
-from isotopo_core.providers.anthropic import AnthropicProvider
+from isotope_core.providers.openai import OpenAIProvider
+from isotope_core.providers.anthropic import AnthropicProvider
 ```
 
 Handle import errors gracefully when optional dependencies aren't installed.
@@ -146,7 +146,7 @@ Export `OpenAIProvider` and `AnthropicProvider` from the top-level package.
 
 ## Technical Constraints
 
-- Provider SDKs are optional dependencies (install via `uv add "isotopo-core[openai]"` etc.)
+- Provider SDKs are optional dependencies (install via `uv add "isotope-core[openai]"` etc.)
 - Use lazy imports to avoid ImportError when SDKs aren't installed
 - All streaming must be proper async generators (not buffered)
 - Never throw from `stream()` — all errors go through `StreamErrorEvent`
@@ -155,7 +155,7 @@ Export `OpenAIProvider` and `AnthropicProvider` from the top-level package.
 
 ## Branch
 
-`feat/isotopo-core/dev-m2`
+`feat/isotope-core/dev-m2`
 
 ## Definition of Done
 

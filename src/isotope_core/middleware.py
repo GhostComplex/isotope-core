@@ -12,7 +12,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol, runtime_checkable
 
-from isotopo_core.types import (
+from isotope_core.types import (
     AgentEvent,
     AssistantMessage,
     Message,

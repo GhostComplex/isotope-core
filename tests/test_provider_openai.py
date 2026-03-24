@@ -8,14 +8,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from isotopo_core.providers.openai import (
+from isotope_core.providers.openai import (
     OpenAIProvider,
     _convert_context_to_openai,
     _convert_tools,
     _map_finish_reason,
     _parse_streaming_json,
 )
-from isotopo_core.types import (
+from isotope_core.types import (
     AssistantMessage,
     Context,
     ImageContent,

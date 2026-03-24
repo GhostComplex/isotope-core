@@ -6,9 +6,9 @@ from collections.abc import AsyncGenerator
 
 import pytest
 
-from isotopo_core.agent import Agent
-from isotopo_core.providers.base import StreamDoneEvent, StreamEvent, StreamStartEvent
-from isotopo_core.types import (
+from isotope_core.agent import Agent
+from isotope_core.providers.base import StreamDoneEvent, StreamEvent, StreamStartEvent
+from isotope_core.types import (
     AgentEvent,
     AssistantMessage,
     Context,

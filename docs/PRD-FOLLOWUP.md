@@ -1,4 +1,4 @@
-# isotopo-core — Follow-up: Integration Tests & TUI
+# isotope-core — Follow-up: Integration Tests & TUI
 
 ## Objective
 
@@ -49,7 +49,7 @@ markers = ["integration: integration tests requiring live proxy"]
 
 ### 2. TUI (`tui/`)
 
-A standalone interactive TUI at the repo root (NOT inside `src/isotopo_core/`).
+A standalone interactive TUI at the repo root (NOT inside `src/isotope_core/`).
 
 **Location:** `tui/` directory at repo root
 - `tui/main.py` — entry point
@@ -73,11 +73,11 @@ A standalone interactive TUI at the repo root (NOT inside `src/isotopo_core/`).
 - Color output (use `rich` library or ANSI codes — prefer `rich` if available, fallback to plain)
 - Show event types in debug mode (`/debug` toggle)
 
-**Dependencies:** Only `isotopo-core` itself + `httpx` (for model listing) + optionally `rich` for pretty output. NO `textual` or heavy TUI frameworks — keep it simple stdin/stdout.
+**Dependencies:** Only `isotope-core` itself + `httpx` (for model listing) + optionally `rich` for pretty output. NO `textual` or heavy TUI frameworks — keep it simple stdin/stdout.
 
 **Example session:**
 ```
-isotopo-core TUI v0.1
+isotope-core TUI v0.1
 Proxy: localhost:4141/v1
 Model: gpt-5.4-mini
 
@@ -101,12 +101,12 @@ Bye!
 
 ## Branch
 
-`feat/isotopo-core/dev-followup`
+`feat/isotope-core/dev-followup`
 
 ## Technical Constraints
 
 - Integration tests must be skippable (don't break CI without proxy)
-- TUI must NOT be part of the `isotopo-core` package (not in `src/`)
+- TUI must NOT be part of the `isotope-core` package (not in `src/`)
 - TUI must work with just `uv sync` from the repo (no extra install)
 - Keep it simple — stdin/stdout, no curses/textual
 - ruff + mypy clean (TUI files can be excluded from mypy if needed)

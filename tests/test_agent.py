@@ -1,4 +1,4 @@
-"""Tests for isotopo_core.agent module."""
+"""Tests for isotope_core.agent module."""
 
 import asyncio
 import time
@@ -7,14 +7,14 @@ from typing import Any
 
 import pytest
 
-from isotopo_core.agent import Agent, AgentState
-from isotopo_core.providers.base import (
+from isotope_core.agent import Agent, AgentState
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamEvent,
     StreamStartEvent,
 )
-from isotopo_core.tools import Tool, ToolResult
-from isotopo_core.types import (
+from isotope_core.tools import Tool, ToolResult
+from isotope_core.types import (
     AgentEvent,
     AssistantMessage,
     Context,

@@ -12,8 +12,8 @@ from typing import Any
 import httpx
 import pytest
 
-from isotopo_core.providers.proxy import ProxyProvider
-from isotopo_core.tools import Tool, ToolResult
+from isotope_core.providers.proxy import ProxyProvider
+from isotope_core.tools import Tool, ToolResult
 
 PROXY_BASE_URL = "http://localhost:4141/v1"
 DEFAULT_MODEL = "gpt-4o-mini"

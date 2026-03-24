@@ -1,11 +1,11 @@
-"""Tests for isotopo_core.events module."""
+"""Tests for isotope_core.events module."""
 
 import asyncio
 
 import pytest
 
-from isotopo_core.events import AgentEventStream, EventStream
-from isotopo_core.types import (
+from isotope_core.events import AgentEventStream, EventStream
+from isotope_core.types import (
     AgentEndEvent,
     AgentStartEvent,
     MessageStartEvent,

@@ -6,8 +6,8 @@ import time
 
 import pytest
 
-from isotopo_core.middleware import LoggingMiddleware, MiddlewareContext, run_middleware_chain
-from isotopo_core.types import (
+from isotope_core.middleware import LoggingMiddleware, MiddlewareContext, run_middleware_chain
+from isotope_core.types import (
     AgentEndEvent,
     AgentEvent,
     AgentStartEvent,

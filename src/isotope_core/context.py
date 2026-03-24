@@ -1,4 +1,4 @@
-"""Context management for isotopo-core.
+"""Context management for isotope-core.
 
 This module provides token counting, context usage estimation, pruning
 strategies, message pinning helpers, and transform context hook factories.
@@ -11,8 +11,8 @@ import json
 from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
-from isotopo_core.providers.base import Provider
-from isotopo_core.types import (
+from isotope_core.providers.base import Provider
+from isotope_core.types import (
     AssistantMessage,
     Context,
     Message,
@@ -557,7 +557,7 @@ class SelectivePruningStrategy:
 # =============================================================================
 
 # Import the hook type alias
-from isotopo_core.loop import TransformContextHook  # noqa: E402
+from isotope_core.loop import TransformContextHook  # noqa: E402
 
 
 def create_sliding_window_transform(

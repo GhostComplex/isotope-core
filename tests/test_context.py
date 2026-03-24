@@ -1,4 +1,4 @@
-"""Tests for isotopo_core.context module — Milestone 3."""
+"""Tests for isotope_core.context module — Milestone 3."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from isotopo_core.context import (
+from isotope_core.context import (
     _CHARS_PER_TOKEN,
     _HAS_TIKTOKEN,
     MODEL_CONTEXT_WINDOWS,
@@ -28,12 +28,12 @@ from isotopo_core.context import (
     pin_message,
     unpin_message,
 )
-from isotopo_core.providers.base import (
+from isotope_core.providers.base import (
     StreamDoneEvent,
     StreamEvent,
     StreamStartEvent,
 )
-from isotopo_core.types import (
+from isotope_core.types import (
     AssistantMessage,
     Context,
     ContextPrunedEvent,
@@ -191,7 +191,7 @@ class TestTokenCountingFallback:
         """Fallback estimation uses ~4 chars per token."""
         text = "a" * 100  # 100 chars -> ~25 tokens
         msg = _user(text)
-        with patch("isotopo_core.context._get_encoding", return_value=None):
+        with patch("isotope_core.context._get_encoding", return_value=None):
             tokens = count_message_tokens(msg, model=None)
             # Tokens = text tokens + overhead (4)
             expected_text_tokens = 100 // _CHARS_PER_TOKEN
@@ -904,7 +904,7 @@ class TestTransformHookWithAgentLoop:
     @pytest.mark.asyncio
     async def test_sliding_window_hook_signature(self) -> None:
         """Sliding window transform matches TransformContextHook signature."""
-        from isotopo_core.loop import TransformContextHook
+        from isotope_core.loop import TransformContextHook
 
         hook: TransformContextHook = create_sliding_window_transform(max_tokens=1000)
         msgs: list[Message] = [_user("hi")]
@@ -914,7 +914,7 @@ class TestTransformHookWithAgentLoop:
     @pytest.mark.asyncio
     async def test_summarization_hook_signature(self) -> None:
         """Summarization transform matches TransformContextHook signature."""
-        from isotopo_core.loop import TransformContextHook
+        from isotope_core.loop import TransformContextHook
 
         provider = MockSummarizationProvider()
         hook: TransformContextHook = create_summarization_transform(
